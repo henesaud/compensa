@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f7f6f2">
+    <meta name="description" content="Compare preços por peso ou volume e encontre o melhor custo-benefício.">
+    <title>Compensa? — compare preços</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="script.js" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="wordmark" href="#inicio" aria-label="Compensa?, início"><span class="wordmark-icon" aria-hidden="true">◆</span> compensa<span>?</span></a>
+      <span class="header-note">Comparador de preços</span>
+    </header>
+
+    <main id="inicio">
+      <section class="comparison" aria-labelledby="comparison-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">COMPARE POR QUANTIDADE</p>
+            <h1 id="comparison-title">Compare preços</h1>
+          </div>
+          <p class="demo-note" id="catalog-status">Carregando catálogo...</p>
+        </div>
+
+        <div class="category-tabs" role="group" aria-label="Escolha uma categoria">
+          <button class="category-button is-active" type="button" data-category="whey" aria-pressed="true">Whey protein</button>
+        </div>
+
+        <div class="filter-panel">
+          <div class="filter-controls" id="filter-controls"></div>
+        </div>
+        <div class="results-heading">
+          <span>Produtos</span>
+          <div class="results-actions">
+            <span class="result-count" id="result-count" aria-live="polite"></span>
+            <button class="insights-toggle" id="insights-toggle" type="button" aria-expanded="false" aria-controls="insights-panel">
+              <span aria-hidden="true">✦</span> Insights importantes
+            </button>
+          </div>
+        </div>
+
+        <section class="insights-panel" id="insights-panel" aria-label="Insights sobre os produtos" hidden></section>
+        <div class="product-grid" id="product-grid" aria-live="polite"></div>
+      </section>
+    </main>
+  </body>
+</html>
