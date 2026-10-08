@@ -5,8 +5,13 @@ const resultCount = document.querySelector('#result-count');
 const catalogStatus = document.querySelector('#catalog-status');
 const insightsToggle = document.querySelector('#insights-toggle');
 const insightsPanel = document.querySelector('#insights-panel');
+const nutritionDialog = document.querySelector('#nutrition-dialog');
+const nutritionDialogTitle = document.querySelector('#nutrition-dialog-title');
+const nutritionDialogProduct = document.querySelector('#nutrition-dialog-product');
+const nutritionDialogContent = document.querySelector('#nutrition-dialog-content');
 let activeCategory = 'whey';
 let products = { whey: [] };
+let visibleProducts = [];
 let insightsOpen = false;
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -35,6 +40,65 @@ function formatAmount(product) {
 
 function formatRatio(value) {
   return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(value * 10)}:10`;
+}
+
+function formatNutritionAmount(value) {
+  return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(value);
+}
+
+function renderNutritionDialog(product, detail) {
+  const details = product.nutritionDetails;
+  if (detail === 'energy') {
+    nutritionDialogTitle.textContent = 'Energia';
+    if (!Number.isFinite(details?.energyKcalPerServing)) {
+      return '<p class="nutrition-unavailable">Energia não informada na tabela deste produto.</p>';
+    }
+    const servingMass = Number.isFinite(details.servingMassGrams) ? `${formatNutritionAmount(details.servingMassGrams)} g` : 'porção da embalagem';
+    return `
+      <div class="energy-stats">
+        <article class="energy-stat"><span>Por porção (${escapeHtml(servingMass)})</span><strong>${formatNutritionAmount(details.energyKcalPerServing)} <small>kcal</small></strong></article>
+        <article class="energy-stat"><span>Densidade energética</span><strong>${Number.isFinite(details.energyKcalPer100g) ? formatNutritionAmount(details.energyKcalPer100g) : '—'} <small>kcal/100 g</small></strong></article>
+      </div>
+      <p class="nutrition-modal-note">O valor por 100 g é calculado a partir das calorias e do peso da porção informada na tabela.</p>`;
+  }
+
+  if (detail === 'carb-protein') {
+    nutritionDialogTitle.textContent = 'Carboidratos e proteína';
+    if (!Number.isFinite(product.carbProteinRatio)) {
+      return '<p class="nutrition-unavailable">A proporção não pôde ser calculada porque faltam dados nutricionais deste produto.</p>';
+    }
+    return `
+      <div class="ratio-summary"><span>Carboidratos para cada 10 g de proteína</span><strong>${formatRatio(product.carbProteinRatio)}</strong></div>
+      <div class="ratio-stats">
+        <article class="ratio-stat"><span>Carboidratos por porção</span><strong>${formatNutritionAmount(product.carbohydrateGrams)} <small>g</small></strong></article>
+        <article class="ratio-stat"><span>Proteína por porção</span><strong>${formatNutritionAmount(product.proteinGrams)} <small>g</small></strong></article>
+      </div>
+      <p class="nutrition-modal-note">Uma proporção menor indica menos carboidratos para a mesma quantidade de proteína. É um dado de composição, não uma avaliação completa do produto.</p>`;
+  }
+
+  nutritionDialogTitle.textContent = 'Aminoácidos';
+  const essential = details?.aminoAcids?.essential || [];
+  const nonEssential = details?.aminoAcids?.nonEssential || [];
+  if (!essential.length && !nonEssential.length) {
+    return '<p class="nutrition-unavailable">A tabela deste produto não informa o perfil de aminoácidos.</p>';
+  }
+  const maxAminoAmount = Math.max(1, ...[...essential, ...nonEssential].map((aminoAcid) => aminoAcid.amount));
+  const aminoGroup = (title, aminoAcids) => `
+    <section class="amino-group">
+      <h3>${title} <span>${aminoAcids.length}</span></h3>
+      ${aminoAcids.length
+        ? `<ul>${aminoAcids.map((aminoAcid) => {
+          const barWidth = Math.min(100, Math.max(0, (aminoAcid.amount / maxAminoAmount) * 100));
+          return `<li class="amino-row"><div class="amino-row-data"><span>${escapeHtml(aminoAcid.name)}</span><strong>${formatNutritionAmount(aminoAcid.amount)} ${escapeHtml(aminoAcid.unit)}</strong></div><div class="amino-bar-track" role="meter" aria-valuemin="0" aria-valuemax="${maxAminoAmount}" aria-valuenow="${aminoAcid.amount}" aria-label="${escapeHtml(aminoAcid.name)}"><span class="amino-bar-fill" style="width:${barWidth}%"></span></div></li>`;
+        }).join('')}</ul>`
+        : '<p class="nutrition-unavailable">Não informado.</p>'}
+    </section>`;
+  return `
+    <div class="amino-groups">
+      ${aminoGroup('Essenciais', essential)}
+      ${aminoGroup('Não essenciais e condicionais', nonEssential)}
+    </div>
+    <p class="nutrition-modal-note">Valores por porção conforme a tabela nutricional. Alguns aminoácidos não essenciais podem ser condicionalmente essenciais.</p>`;
 }
 
 function renderInsights(visibleProducts) {
@@ -120,6 +184,7 @@ function renderProducts() {
     .map((product) => ({ ...product, unitPrice: getUnitPrice(product) }))
     .sort((a, b) => a.unitPrice - b.unitPrice);
 
+  visibleProducts = filtered;
   renderInsights(filtered);
 
   if (filtered.length === 0) {
@@ -133,7 +198,7 @@ function renderProducts() {
 
   const bestPrice = filtered[0].unitPrice;
   const unitLabel = getUnitLabel(activeCategory);
-  productGrid.innerHTML = filtered.map((product) => {
+  productGrid.innerHTML = filtered.map((product, productIndex) => {
     const isBest = product.unitPrice === bestPrice;
     const productLink = `<a class="product-link" href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer">Ver produto ↗</a>`;
     const productImage = product.image
@@ -142,9 +207,14 @@ function renderProducts() {
     const ratio = Number.isFinite(product.carbProteinRatio)
       ? formatRatio(product.carbProteinRatio)
       : 'não informado';
-    const ratioHelp = Number.isFinite(product.carbProteinRatio)
-      ? `Por porção: ${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(product.carbohydrateGrams)} g de carboidratos e ${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(product.proteinGrams)} g de proteína. A proporção mostra quantos gramas de carboidrato há para cada 10 g de proteína. Ajuda a comparar a composição, mas não determina sozinho qual produto é melhor para você.`
-      : 'A informação nutricional deste produto não estava disponível para calcular a proporção.';
+    const essentialAminoAcidCount = product.nutritionDetails?.aminoAcids?.essential?.length || 0;
+    const nonEssentialAminoAcidCount = product.nutritionDetails?.aminoAcids?.nonEssential?.length || 0;
+    const hasAminoAcidData = essentialAminoAcidCount + nonEssentialAminoAcidCount > 0;
+    const energySummary = Number.isFinite(product.nutritionDetails?.energyKcalPer100g)
+      ? `${formatNutritionAmount(product.nutritionDetails.energyKcalPer100g)} kcal/100 g`
+      : Number.isFinite(product.nutritionDetails?.energyKcalPerServing)
+        ? `${formatNutritionAmount(product.nutritionDetails.energyKcalPerServing)} kcal/porção`
+        : 'Não informado';
     return `
       <article class="product-card${isBest ? ' best-value' : ''}">
         ${isBest ? '<span class="best-label">MENOR PREÇO</span>' : ''}
@@ -154,9 +224,16 @@ function renderProducts() {
             <p class="product-brand">${escapeHtml(product.brand)}</p>
             <h3 class="product-name">${escapeHtml(product.name)}</h3>
             ${productLink}
-            <div class="nutrition-ratio" tabindex="0" aria-label="Carboidratos por proteína: ${ratio}">
-              <span>Carbo/proteína</span><strong>${ratio}</strong>
-              <span class="nutrition-tooltip" role="tooltip">${ratioHelp}</span>
+            <div class="nutrition-actions">
+              <button class="nutrition-info-button" type="button" data-nutrition-detail="carb-protein" data-product-index="${productIndex}" aria-haspopup="dialog">
+                <span>Carbo/proteína</span><strong>${ratio}</strong>
+              </button>
+              <button class="nutrition-info-button" type="button" data-nutrition-detail="energy" data-product-index="${productIndex}" aria-haspopup="dialog">
+                <span>Energia</span><strong>${energySummary}</strong>
+              </button>
+              <button class="nutrition-info-button" type="button" data-nutrition-detail="amino-acids" data-product-index="${productIndex}" aria-haspopup="dialog">
+                <span>Aminoácidos</span><strong>${hasAminoAcidData ? `${essentialAminoAcidCount} essenciais` : 'Não informado'}</strong>
+              </button>
             </div>
           </div>
         </div>
@@ -215,6 +292,19 @@ categoryButtons.forEach((button) => {
 });
 
 filterControls.addEventListener('change', renderProducts);
+productGrid.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-nutrition-detail]');
+  if (!button) return;
+  const product = visibleProducts[Number(button.dataset.productIndex)];
+  if (!product) return;
+  nutritionDialogProduct.textContent = product.name;
+  nutritionDialogContent.innerHTML = renderNutritionDialog(product, button.dataset.nutritionDetail);
+  nutritionDialog.showModal();
+});
+document.querySelector('#nutrition-dialog-close').addEventListener('click', () => nutritionDialog.close());
+nutritionDialog.addEventListener('click', (event) => {
+  if (event.target === nutritionDialog) nutritionDialog.close();
+});
 insightsToggle.addEventListener('click', () => {
   insightsOpen = !insightsOpen;
   renderProducts();
