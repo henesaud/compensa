@@ -1,6 +1,6 @@
 {
   "source": "https://www.gsuplementos.com.br",
-  "updatedAt": "2026-10-08T13:59:42.896Z",
+  "updatedAt": "2026-10-08T14:34:54.981Z",
   "products": {
     "whey": [
       {
@@ -280,6 +280,107 @@
             }
           ],
           "text": "INFORMAÇÃO NUTRICIONAL\nPorções por embalagem: Cerca de 33\nPorção: 30 g (2 dosadores)\n30 g\t%VD*\nValor energético (kcal)\t124\t6\nCarboidratos (g)\t2,3\t1\nAçúcares totais (g)\t1,7\nAçúcares adicionados (g)\t0\t0\nProteínas (g)\t24\t48\nL-Alanina (mg)\t1206\nArginina (mg)\t642\nAspartato (mg)\t2730\nL-Cisteína (mg)\t759\nÁcido L-Glutâmico (mg)\t4380\nGlicina (mg)\t474\nL-Histidina (mg)\t468\nL-Isoleucina (mg)\t1542\nL-Leucina (mg)\t2592\nLisina (mg)\t2193\nL-Metionina (mg)\t687\nL-Fenilalanina (mg)\t798\nL-Prolina (mg)\t1464\nL-Serina (mg)\t1305\nL-Treonina (mg)\t1707\nTriptofano (mg)\t312\nL-Tirosina (mg)\t753\nL-Valina (mg)\t1479\nGorduras totais (g)\t2,1\t3\nGorduras saturadas (g)\t0,8\t4\nGorduras trans (g)\t0\t0\nFibras alimentares (g)\t0\t0\nSódio (mg)\t47\t2\n*Percentual de valores diários fornecidos pela porção."
+        },
+        "nutritionDetails": {
+          "servingMassGrams": 30,
+          "energyKcalPerServing": 124,
+          "energyKcalPer100g": 413.33333333333337,
+          "aminoAcids": {
+            "essential": [
+              {
+                "name": "Histidina",
+                "amount": 468,
+                "unit": "mg"
+              },
+              {
+                "name": "Isoleucina",
+                "amount": 1542,
+                "unit": "mg"
+              },
+              {
+                "name": "Leucina",
+                "amount": 2592,
+                "unit": "mg"
+              },
+              {
+                "name": "Lisina",
+                "amount": 2193,
+                "unit": "mg"
+              },
+              {
+                "name": "Metionina",
+                "amount": 687,
+                "unit": "mg"
+              },
+              {
+                "name": "Fenilalanina",
+                "amount": 798,
+                "unit": "mg"
+              },
+              {
+                "name": "Treonina",
+                "amount": 1707,
+                "unit": "mg"
+              },
+              {
+                "name": "Triptofano",
+                "amount": 312,
+                "unit": "mg"
+              },
+              {
+                "name": "Valina",
+                "amount": 1479,
+                "unit": "mg"
+              }
+            ],
+            "nonEssential": [
+              {
+                "name": "Alanina",
+                "amount": 1206,
+                "unit": "mg"
+              },
+              {
+                "name": "Arginina",
+                "amount": 642,
+                "unit": "mg"
+              },
+              {
+                "name": "Aspartato",
+                "amount": 2730,
+                "unit": "mg"
+              },
+              {
+                "name": "Cisteína",
+                "amount": 759,
+                "unit": "mg"
+              },
+              {
+                "name": "Ácido glutâmico",
+                "amount": 4380,
+                "unit": "mg"
+              },
+              {
+                "name": "Glicina",
+                "amount": 474,
+                "unit": "mg"
+              },
+              {
+                "name": "Prolina",
+                "amount": 1464,
+                "unit": "mg"
+              },
+              {
+                "name": "Serina",
+                "amount": 1305,
+                "unit": "mg"
+              },
+              {
+                "name": "Tirosina",
+                "amount": 753,
+                "unit": "mg"
+              }
+            ]
+          }
         },
         "carbProteinRatio": 0.09583333333333333,
         "image": "assets/products/top-whey-protein-concentrado-1kg-1f39f30bb7.webp"
@@ -562,6 +663,107 @@
           ],
           "text": "INFORMAÇÃO NUTRICIONAL\nPorções por embalagem: 33\nPorção: 30 g (2+½ dosadores)\n30 g\t%VD*\nValor energético (kcal)\t116\t6\nCarboidratos (g)\t2\t1\nAçúcares totais (g)\t0\nAçúcares adicionados (g)\t0\t0\nProteínas (g)\t27\t54\nL-Alanina (mg)\t1389\nArginina (mg)\t516\nAspartato (mg)\t3201\nL-Cisteína (mg)\t651\nÁcido L-Glutâmico (mg)\t5049\nGlicina (mg)\t477\nL-Histidina (mg)\t384\nL-Isoleucina (mg)\t1854\nL-Leucina (mg)\t2838\nLisina (mg)\t2682\nL-Metionina (mg)\t768\nL-Fenilalanina (mg)\t816\nL-Prolina (mg)\t1755\nL-Serina (mg)\t1449\nL-Treonina (mg)\t2277\nTriptofano (mg)\t543\nL-Tirosina (mg)\t858\nL-Valina (mg)\t1626\nGorduras totais (g)\t0\t0\nGorduras saturadas (g)\t0\t0\nGorduras trans (g)\t0\t0\nFibras alimentares (g)\t0\t0\nSódio (mg)\t44\t2\n*Percentual de valores diários fornecidos pela porção."
         },
+        "nutritionDetails": {
+          "servingMassGrams": 30,
+          "energyKcalPerServing": 116,
+          "energyKcalPer100g": 386.6666666666667,
+          "aminoAcids": {
+            "essential": [
+              {
+                "name": "Histidina",
+                "amount": 384,
+                "unit": "mg"
+              },
+              {
+                "name": "Isoleucina",
+                "amount": 1854,
+                "unit": "mg"
+              },
+              {
+                "name": "Leucina",
+                "amount": 2838,
+                "unit": "mg"
+              },
+              {
+                "name": "Lisina",
+                "amount": 2682,
+                "unit": "mg"
+              },
+              {
+                "name": "Metionina",
+                "amount": 768,
+                "unit": "mg"
+              },
+              {
+                "name": "Fenilalanina",
+                "amount": 816,
+                "unit": "mg"
+              },
+              {
+                "name": "Treonina",
+                "amount": 2277,
+                "unit": "mg"
+              },
+              {
+                "name": "Triptofano",
+                "amount": 543,
+                "unit": "mg"
+              },
+              {
+                "name": "Valina",
+                "amount": 1626,
+                "unit": "mg"
+              }
+            ],
+            "nonEssential": [
+              {
+                "name": "Alanina",
+                "amount": 1389,
+                "unit": "mg"
+              },
+              {
+                "name": "Arginina",
+                "amount": 516,
+                "unit": "mg"
+              },
+              {
+                "name": "Aspartato",
+                "amount": 3201,
+                "unit": "mg"
+              },
+              {
+                "name": "Cisteína",
+                "amount": 651,
+                "unit": "mg"
+              },
+              {
+                "name": "Ácido glutâmico",
+                "amount": 5049,
+                "unit": "mg"
+              },
+              {
+                "name": "Glicina",
+                "amount": 477,
+                "unit": "mg"
+              },
+              {
+                "name": "Prolina",
+                "amount": 1755,
+                "unit": "mg"
+              },
+              {
+                "name": "Serina",
+                "amount": 1449,
+                "unit": "mg"
+              },
+              {
+                "name": "Tirosina",
+                "amount": 858,
+                "unit": "mg"
+              }
+            ]
+          }
+        },
         "carbProteinRatio": 0.07407407407407407,
         "image": "assets/products/top-whey-protein-isolado-1kg-4d01a7c66b.webp"
       },
@@ -698,6 +900,12 @@
             }
           ],
           "text": "INFORMAÇÃO NUTRICIONAL\nPorções por embalagem: Cerca de 33\nPorção: 30 g (2 dosadores)\n30 g\t%VD*\nValor energético (kcal)\t121\t6\nCarboidratos (g)\t8,7\t3\nAçúcares totais (g)\t7,9\nAçúcares adicionados (g)\t0\t0\nProteínas (g)\t17\t34\nGorduras totais (g)\t2\t3\nGorduras saturadas (g)\t1\t5\nGorduras trans (g)\t0\t0\nFibras alimentares (g)\t0\t0\nSódio\t76\t4\n*Percentual de valores diários fornecidos pela porção."
+        },
+        "nutritionDetails": {
+          "servingMassGrams": 30,
+          "energyKcalPerServing": 121,
+          "energyKcalPer100g": 403.3333333333333,
+          "aminoAcids": null
         },
         "carbProteinRatio": 0.5117647058823529,
         "image": "assets/products/medium-whey-protein-1kg-ddc5655e6f.webp"
@@ -836,6 +1044,12 @@
           ],
           "text": "INFORMAÇÃO NUTRICIONAL\nPorções por embalagem: Cerca de 33\nPorção: 30 g (1+ ¹/² dosadores)\n30 g\t%VD*\nValor energético (kcal)\t118\t6\nCarboidratos (g)\t15\t5\nAçúcares totais (g)\t14\nAçúcares adicionados (g)\t0\t0\nProteínas (g)\t10\t20\nGorduras totais (g)\t2\t3\nGorduras saturadas (g)\t1,2\t6\nGorduras trans (g)\t0,1\t5\nFibras alimentares (g)\t0\t0\nSódio (mg)\t104\t5\n*Percentual de valores diários fornecidos pela porção."
         },
+        "nutritionDetails": {
+          "servingMassGrams": 30,
+          "energyKcalPerServing": 118,
+          "energyKcalPer100g": 393.3333333333333,
+          "aminoAcids": null
+        },
         "carbProteinRatio": 1.5,
         "image": "assets/products/basic-whey-protein-1kg-9d7643184c.webp"
       },
@@ -972,6 +1186,12 @@
             }
           ],
           "text": "INFORMAÇÃO NUTRICIONAL\nPorções por embalagem: 33\nPorção: 30 g (2 dosadores)\n30 g\t%VD*\nValor energético (kcal)\t115\t6\nCarboidratos (g)\t2,6\t1\nAçúcares totais (g)\t1,7\nAçúcares adicionados (g)\t0,1\t0\nProteínas (g)\t24\t48\nGorduras totais (g)\t1\t2\nGorduras saturadas (g)\t0,5\t3\nGorduras trans (g)\t0\t0\nFibras Alimentares (g)\t0\t0\nSódio (mg)\t152\t8\n*Percentual de valores diários fornecidos pela porção."
+        },
+        "nutritionDetails": {
+          "servingMassGrams": 30,
+          "energyKcalPerServing": 115,
+          "energyKcalPer100g": 383.33333333333337,
+          "aminoAcids": null
         },
         "carbProteinRatio": 0.10833333333333334,
         "image": "assets/products/top-whey-e-egg-sabor-natural-1kg-8e651de93f.webp"
@@ -1253,6 +1473,107 @@
             }
           ],
           "text": "INFORMAÇÃO NUTRICIONAL\nPorções por embalagem: Cerca de 33\nPorção: 30 g (2 dosadores)\n30 g\t%VD*\nValor energético (kcal)\t115\t6\nCarboidratos (g)\t0,6\t0\nAçúcares totais (g)\t0,5\nAçúcares adicionados (g)\t0\t0\nProteínas (g)\t27\t54\nL-Alanina (mg)\t1260\nArginina (mg)\t600\nAspartato (mg)\t2820\nL-Cisteína (mg)\t690\nÁcido L-Glutâmico (mg)\t4770\nGlicina (mg)\t450\nL-Histidina (mg)\t420\nL-Isoleucina (mg)\t1620\nL-Leucina (mg)\t2730\nLisina (mg)\t2730\nL-Metionina (mg)\t570\nL-Fenilalanina (mg)\t780\nL-Prolina (mg)\t1560\nL-Serina (mg)\t1110\nL-Treonina (mg)\t1770\nTriptofano (mg)\t480\nL-Tirosina (mg)\t750\nL-Valina (mg)\t1320\nGorduras totais (g)\t0,5\t1\nGorduras saturadas (g)\t0,2\t1\nGorduras trans (g)\t0\t0\nFibras alimentares (g)\t0\t0\nSódio (mg)\t68\t3\n*Percentual de valores diários fornecidos pela porção."
+        },
+        "nutritionDetails": {
+          "servingMassGrams": 30,
+          "energyKcalPerServing": 115,
+          "energyKcalPer100g": 383.33333333333337,
+          "aminoAcids": {
+            "essential": [
+              {
+                "name": "Histidina",
+                "amount": 420,
+                "unit": "mg"
+              },
+              {
+                "name": "Isoleucina",
+                "amount": 1620,
+                "unit": "mg"
+              },
+              {
+                "name": "Leucina",
+                "amount": 2730,
+                "unit": "mg"
+              },
+              {
+                "name": "Lisina",
+                "amount": 2730,
+                "unit": "mg"
+              },
+              {
+                "name": "Metionina",
+                "amount": 570,
+                "unit": "mg"
+              },
+              {
+                "name": "Fenilalanina",
+                "amount": 780,
+                "unit": "mg"
+              },
+              {
+                "name": "Treonina",
+                "amount": 1770,
+                "unit": "mg"
+              },
+              {
+                "name": "Triptofano",
+                "amount": 480,
+                "unit": "mg"
+              },
+              {
+                "name": "Valina",
+                "amount": 1320,
+                "unit": "mg"
+              }
+            ],
+            "nonEssential": [
+              {
+                "name": "Alanina",
+                "amount": 1260,
+                "unit": "mg"
+              },
+              {
+                "name": "Arginina",
+                "amount": 600,
+                "unit": "mg"
+              },
+              {
+                "name": "Aspartato",
+                "amount": 2820,
+                "unit": "mg"
+              },
+              {
+                "name": "Cisteína",
+                "amount": 690,
+                "unit": "mg"
+              },
+              {
+                "name": "Ácido glutâmico",
+                "amount": 4770,
+                "unit": "mg"
+              },
+              {
+                "name": "Glicina",
+                "amount": 450,
+                "unit": "mg"
+              },
+              {
+                "name": "Prolina",
+                "amount": 1560,
+                "unit": "mg"
+              },
+              {
+                "name": "Serina",
+                "amount": 1110,
+                "unit": "mg"
+              },
+              {
+                "name": "Tirosina",
+                "amount": 750,
+                "unit": "mg"
+              }
+            ]
+          }
         },
         "carbProteinRatio": 0.022222222222222223,
         "image": "assets/products/whey-protein-hidrolisado-1kg-sabor-natural-5fafc800a4.webp"

@@ -21,3 +21,7 @@ make update-products
 ```
 
 The updater collects product prices, images, and available nutrition tables into `data/products.json`. Review and push the updated catalog and images to GitHub to publish them.
+
+
+
+**Under construction:** more products will be added soon.

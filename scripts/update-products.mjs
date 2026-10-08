@@ -330,6 +330,66 @@ async function scrapeNutrition(page, productUrl) {
   }
 }
 
+function nutritionDetails(table) {
+  if (!table?.rows?.length) return null;
+  const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const parseAmount = (value) => {
+    if (!value) return null;
+    const number = String(value).match(/\d+(?:[.,]\d+)?/);
+    if (!number) return null;
+    return Number(number[0].replace(/\./g, '').replace(',', '.'));
+  };
+  const definitions = [
+    { name: 'Histidina', pattern: /histidina/, essential: true },
+    { name: 'Isoleucina', pattern: /isoleucina/, essential: true },
+    { name: 'Leucina', pattern: /leucina/, essential: true },
+    { name: 'Lisina', pattern: /lisina/, essential: true },
+    { name: 'Metionina', pattern: /metionina/, essential: true },
+    { name: 'Fenilalanina', pattern: /fenilalanina/, essential: true },
+    { name: 'Treonina', pattern: /treonina/, essential: true },
+    { name: 'Triptofano', pattern: /triptofano/, essential: true },
+    { name: 'Valina', pattern: /valina/, essential: true },
+    { name: 'Alanina', pattern: /alanina/, essential: false },
+    { name: 'Arginina', pattern: /arginina/, essential: false },
+    { name: 'Aspartato', pattern: /aspartato|acido l? aspartico|aspartico/, essential: false },
+    { name: 'Cisteína', pattern: /cisteina/, essential: false },
+    { name: 'Ácido glutâmico', pattern: /glutamico/, essential: false },
+    { name: 'Glicina', pattern: /glicina/, essential: false },
+    { name: 'Prolina', pattern: /prolina/, essential: false },
+    { name: 'Serina', pattern: /serina/, essential: false },
+    { name: 'Tirosina', pattern: /tirosina/, essential: false },
+    { name: 'Asparagina', pattern: /asparagina/, essential: false },
+    { name: 'Glutamina', pattern: /glutamina/, essential: false },
+  ];
+  const energyRow = table.rows.find((row) => /valor energetico/i.test(normalize(row.label || row.text)));
+  const energyKcalPerServing = parseAmount(energyRow?.cells?.[1] || energyRow?.text);
+  const servingMassGrams = parseAmount(table.servingSize?.match(/\d+(?:[.,]\d+)?\s*g\b/i)?.[0]);
+  const aminoAcids = { essential: [], nonEssential: [] };
+
+  for (const row of table.rows) {
+    const label = normalize(row.label || row.text);
+    const definition = definitions.find((candidate) => candidate.pattern.test(label));
+    if (!definition) continue;
+    const amount = parseAmount(row.cells?.[1]);
+    if (!Number.isFinite(amount)) continue;
+    const unit = row.label.match(/\((mg|g)\)/i)?.[1]?.toLowerCase() || 'mg';
+    aminoAcids[definition.essential ? 'essential' : 'nonEssential'].push({
+      name: definition.name,
+      amount,
+      unit,
+    });
+  }
+
+  return {
+    servingMassGrams,
+    energyKcalPerServing,
+    energyKcalPer100g: Number.isFinite(energyKcalPerServing) && Number.isFinite(servingMassGrams) && servingMassGrams > 0
+      ? (energyKcalPerServing / servingMassGrams) * 100
+      : null,
+    aminoAcids: aminoAcids.essential.length || aminoAcids.nonEssential.length ? aminoAcids : null,
+  };
+}
+
 function imageExtension(imageUrl, contentType) {
   const mimeExtensions = {
     'image/avif': 'avif',
@@ -411,6 +471,7 @@ try {
       product.proteinGrams = null;
       product.carbProteinRatio = null;
       product.nutritionTable = null;
+      product.nutritionDetails = null;
       console.warn(`No product detail page found for nutrition data: ${product.name}`);
       continue;
     }
@@ -418,6 +479,7 @@ try {
     product.carbohydrateGrams = nutrition.carbohydrateGrams;
     product.proteinGrams = nutrition.proteinGrams;
     product.nutritionTable = nutrition.nutritionTable;
+    product.nutritionDetails = nutritionDetails(nutrition.nutritionTable);
     product.carbProteinRatio = Number.isFinite(nutrition.carbohydrateGrams)
       && Number.isFinite(nutrition.proteinGrams)
       && nutrition.proteinGrams > 0
