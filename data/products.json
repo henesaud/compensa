@@ -1,0 +1,1262 @@
+{
+  "source": "https://www.gsuplementos.com.br",
+  "updatedAt": "2026-10-08T13:59:42.896Z",
+  "products": {
+    "whey": [
+      {
+        "brand": "Growth Supplements",
+        "name": "(TOP) Whey Protein Concentrado 1Kg",
+        "type": "Concentrado",
+        "amount": 1,
+        "unit": "kg",
+        "price": 222.11,
+        "url": "https://www.gsuplementos.com.br/whey-protein-concentrado-1kg-growth-supplements-p985936",
+        "carbohydrateGrams": 2.3,
+        "proteinGrams": 24,
+        "nutritionTable": {
+          "servingSize": "30 g (2 dosadores)",
+          "rows": [
+            {
+              "label": "INFORMAÇÃO NUTRICIONAL",
+              "cells": [
+                "INFORMAÇÃO NUTRICIONAL"
+              ],
+              "text": "INFORMAÇÃO NUTRICIONAL"
+            },
+            {
+              "label": "Porções por embalagem: Cerca de 33 Porção: 30 g (2 dosadores)",
+              "cells": [
+                "Porções por embalagem: Cerca de 33 Porção: 30 g (2 dosadores)"
+              ],
+              "text": "Porções por embalagem: Cerca de 33 Porção: 30 g (2 dosadores)"
+            },
+            {
+              "label": "30 g",
+              "cells": [
+                "30 g",
+                "%VD*"
+              ],
+              "text": "30 g | %VD*"
+            },
+            {
+              "label": "Valor energético (kcal)",
+              "cells": [
+                "Valor energético (kcal)",
+                "124",
+                "6"
+              ],
+              "text": "Valor energético (kcal) | 124 | 6"
+            },
+            {
+              "label": "Carboidratos (g)",
+              "cells": [
+                "Carboidratos (g)",
+                "2,3",
+                "1"
+              ],
+              "text": "Carboidratos (g) | 2,3 | 1"
+            },
+            {
+              "label": "Açúcares totais (g)",
+              "cells": [
+                "Açúcares totais (g)",
+                "1,7"
+              ],
+              "text": "Açúcares totais (g) | 1,7"
+            },
+            {
+              "label": "Açúcares adicionados (g)",
+              "cells": [
+                "Açúcares adicionados (g)",
+                "0",
+                "0"
+              ],
+              "text": "Açúcares adicionados (g) | 0 | 0"
+            },
+            {
+              "label": "Proteínas (g)",
+              "cells": [
+                "Proteínas (g)",
+                "24",
+                "48"
+              ],
+              "text": "Proteínas (g) | 24 | 48"
+            },
+            {
+              "label": "L-Alanina (mg)",
+              "cells": [
+                "L-Alanina (mg)",
+                "1206"
+              ],
+              "text": "L-Alanina (mg) | 1206"
+            },
+            {
+              "label": "Arginina (mg)",
+              "cells": [
+                "Arginina (mg)",
+                "642"
+              ],
+              "text": "Arginina (mg) | 642"
+            },
+            {
+              "label": "Aspartato (mg)",
+              "cells": [
+                "Aspartato (mg)",
+                "2730"
+              ],
+              "text": "Aspartato (mg) | 2730"
+            },
+            {
+              "label": "L-Cisteína (mg)",
+              "cells": [
+                "L-Cisteína (mg)",
+                "759"
+              ],
+              "text": "L-Cisteína (mg) | 759"
+            },
+            {
+              "label": "Ácido L-Glutâmico (mg)",
+              "cells": [
+                "Ácido L-Glutâmico (mg)",
+                "4380"
+              ],
+              "text": "Ácido L-Glutâmico (mg) | 4380"
+            },
+            {
+              "label": "Glicina (mg)",
+              "cells": [
+                "Glicina (mg)",
+                "474"
+              ],
+              "text": "Glicina (mg) | 474"
+            },
+            {
+              "label": "L-Histidina (mg)",
+              "cells": [
+                "L-Histidina (mg)",
+                "468"
+              ],
+              "text": "L-Histidina (mg) | 468"
+            },
+            {
+              "label": "L-Isoleucina (mg)",
+              "cells": [
+                "L-Isoleucina (mg)",
+                "1542"
+              ],
+              "text": "L-Isoleucina (mg) | 1542"
+            },
+            {
+              "label": "L-Leucina (mg)",
+              "cells": [
+                "L-Leucina (mg)",
+                "2592"
+              ],
+              "text": "L-Leucina (mg) | 2592"
+            },
+            {
+              "label": "Lisina (mg)",
+              "cells": [
+                "Lisina (mg)",
+                "2193"
+              ],
+              "text": "Lisina (mg) | 2193"
+            },
+            {
+              "label": "L-Metionina (mg)",
+              "cells": [
+                "L-Metionina (mg)",
+                "687"
+              ],
+              "text": "L-Metionina (mg) | 687"
+            },
+            {
+              "label": "L-Fenilalanina (mg)",
+              "cells": [
+                "L-Fenilalanina (mg)",
+                "798"
+              ],
+              "text": "L-Fenilalanina (mg) | 798"
+            },
+            {
+              "label": "L-Prolina (mg)",
+              "cells": [
+                "L-Prolina (mg)",
+                "1464"
+              ],
+              "text": "L-Prolina (mg) | 1464"
+            },
+            {
+              "label": "L-Serina (mg)",
+              "cells": [
+                "L-Serina (mg)",
+                "1305"
+              ],
+              "text": "L-Serina (mg) | 1305"
+            },
+            {
+              "label": "L-Treonina (mg)",
+              "cells": [
+                "L-Treonina (mg)",
+                "1707"
+              ],
+              "text": "L-Treonina (mg) | 1707"
+            },
+            {
+              "label": "Triptofano (mg)",
+              "cells": [
+                "Triptofano (mg)",
+                "312"
+              ],
+              "text": "Triptofano (mg) | 312"
+            },
+            {
+              "label": "L-Tirosina (mg)",
+              "cells": [
+                "L-Tirosina (mg)",
+                "753"
+              ],
+              "text": "L-Tirosina (mg) | 753"
+            },
+            {
+              "label": "L-Valina (mg)",
+              "cells": [
+                "L-Valina (mg)",
+                "1479"
+              ],
+              "text": "L-Valina (mg) | 1479"
+            },
+            {
+              "label": "Gorduras totais (g)",
+              "cells": [
+                "Gorduras totais (g)",
+                "2,1",
+                "3"
+              ],
+              "text": "Gorduras totais (g) | 2,1 | 3"
+            },
+            {
+              "label": "Gorduras saturadas (g)",
+              "cells": [
+                "Gorduras saturadas (g)",
+                "0,8",
+                "4"
+              ],
+              "text": "Gorduras saturadas (g) | 0,8 | 4"
+            },
+            {
+              "label": "Gorduras trans (g)",
+              "cells": [
+                "Gorduras trans (g)",
+                "0",
+                "0"
+              ],
+              "text": "Gorduras trans (g) | 0 | 0"
+            },
+            {
+              "label": "Fibras alimentares (g)",
+              "cells": [
+                "Fibras alimentares (g)",
+                "0",
+                "0"
+              ],
+              "text": "Fibras alimentares (g) | 0 | 0"
+            },
+            {
+              "label": "Sódio (mg)",
+              "cells": [
+                "Sódio (mg)",
+                "47",
+                "2"
+              ],
+              "text": "Sódio (mg) | 47 | 2"
+            },
+            {
+              "label": "*Percentual de valores diários fornecidos pela porção.",
+              "cells": [
+                "*Percentual de valores diários fornecidos pela porção."
+              ],
+              "text": "*Percentual de valores diários fornecidos pela porção."
+            }
+          ],
+          "text": "INFORMAÇÃO NUTRICIONAL\nPorções por embalagem: Cerca de 33\nPorção: 30 g (2 dosadores)\n30 g\t%VD*\nValor energético (kcal)\t124\t6\nCarboidratos (g)\t2,3\t1\nAçúcares totais (g)\t1,7\nAçúcares adicionados (g)\t0\t0\nProteínas (g)\t24\t48\nL-Alanina (mg)\t1206\nArginina (mg)\t642\nAspartato (mg)\t2730\nL-Cisteína (mg)\t759\nÁcido L-Glutâmico (mg)\t4380\nGlicina (mg)\t474\nL-Histidina (mg)\t468\nL-Isoleucina (mg)\t1542\nL-Leucina (mg)\t2592\nLisina (mg)\t2193\nL-Metionina (mg)\t687\nL-Fenilalanina (mg)\t798\nL-Prolina (mg)\t1464\nL-Serina (mg)\t1305\nL-Treonina (mg)\t1707\nTriptofano (mg)\t312\nL-Tirosina (mg)\t753\nL-Valina (mg)\t1479\nGorduras totais (g)\t2,1\t3\nGorduras saturadas (g)\t0,8\t4\nGorduras trans (g)\t0\t0\nFibras alimentares (g)\t0\t0\nSódio (mg)\t47\t2\n*Percentual de valores diários fornecidos pela porção."
+        },
+        "carbProteinRatio": 0.09583333333333333,
+        "image": "assets/products/top-whey-protein-concentrado-1kg-1f39f30bb7.webp"
+      },
+      {
+        "brand": "Growth Supplements",
+        "name": "(TOP) Whey Protein Isolado 1Kg",
+        "type": "Isolado",
+        "amount": 1,
+        "unit": "kg",
+        "price": 388.77,
+        "url": "https://www.gsuplementos.com.br/top-whey-protein-isolado-1kg-growth-supplements-p985937",
+        "carbohydrateGrams": 2,
+        "proteinGrams": 27,
+        "nutritionTable": {
+          "servingSize": "30 g (2+½ dosadores)",
+          "rows": [
+            {
+              "label": "INFORMAÇÃO NUTRICIONAL",
+              "cells": [
+                "INFORMAÇÃO NUTRICIONAL"
+              ],
+              "text": "INFORMAÇÃO NUTRICIONAL"
+            },
+            {
+              "label": "Porções por embalagem: 33 Porção: 30 g (2+½ dosadores)",
+              "cells": [
+                "Porções por embalagem: 33 Porção: 30 g (2+½ dosadores)"
+              ],
+              "text": "Porções por embalagem: 33 Porção: 30 g (2+½ dosadores)"
+            },
+            {
+              "label": "30 g",
+              "cells": [
+                "30 g",
+                "%VD*"
+              ],
+              "text": "30 g | %VD*"
+            },
+            {
+              "label": "Valor energético (kcal)",
+              "cells": [
+                "Valor energético (kcal)",
+                "116",
+                "6"
+              ],
+              "text": "Valor energético (kcal) | 116 | 6"
+            },
+            {
+              "label": "Carboidratos (g)",
+              "cells": [
+                "Carboidratos (g)",
+                "2",
+                "1"
+              ],
+              "text": "Carboidratos (g) | 2 | 1"
+            },
+            {
+              "label": "Açúcares totais (g)",
+              "cells": [
+                "Açúcares totais (g)",
+                "0"
+              ],
+              "text": "Açúcares totais (g) | 0"
+            },
+            {
+              "label": "Açúcares adicionados (g)",
+              "cells": [
+                "Açúcares adicionados (g)",
+                "0",
+                "0"
+              ],
+              "text": "Açúcares adicionados (g) | 0 | 0"
+            },
+            {
+              "label": "Proteínas (g)",
+              "cells": [
+                "Proteínas (g)",
+                "27",
+                "54"
+              ],
+              "text": "Proteínas (g) | 27 | 54"
+            },
+            {
+              "label": "L-Alanina (mg)",
+              "cells": [
+                "L-Alanina (mg)",
+                "1389"
+              ],
+              "text": "L-Alanina (mg) | 1389"
+            },
+            {
+              "label": "Arginina (mg)",
+              "cells": [
+                "Arginina (mg)",
+                "516"
+              ],
+              "text": "Arginina (mg) | 516"
+            },
+            {
+              "label": "Aspartato (mg)",
+              "cells": [
+                "Aspartato (mg)",
+                "3201"
+              ],
+              "text": "Aspartato (mg) | 3201"
+            },
+            {
+              "label": "L-Cisteína (mg)",
+              "cells": [
+                "L-Cisteína (mg)",
+                "651"
+              ],
+              "text": "L-Cisteína (mg) | 651"
+            },
+            {
+              "label": "Ácido L-Glutâmico (mg)",
+              "cells": [
+                "Ácido L-Glutâmico (mg)",
+                "5049"
+              ],
+              "text": "Ácido L-Glutâmico (mg) | 5049"
+            },
+            {
+              "label": "Glicina (mg)",
+              "cells": [
+                "Glicina (mg)",
+                "477"
+              ],
+              "text": "Glicina (mg) | 477"
+            },
+            {
+              "label": "L-Histidina (mg)",
+              "cells": [
+                "L-Histidina (mg)",
+                "384"
+              ],
+              "text": "L-Histidina (mg) | 384"
+            },
+            {
+              "label": "L-Isoleucina (mg)",
+              "cells": [
+                "L-Isoleucina (mg)",
+                "1854"
+              ],
+              "text": "L-Isoleucina (mg) | 1854"
+            },
+            {
+              "label": "L-Leucina (mg)",
+              "cells": [
+                "L-Leucina (mg)",
+                "2838"
+              ],
+              "text": "L-Leucina (mg) | 2838"
+            },
+            {
+              "label": "Lisina (mg)",
+              "cells": [
+                "Lisina (mg)",
+                "2682"
+              ],
+              "text": "Lisina (mg) | 2682"
+            },
+            {
+              "label": "L-Metionina (mg)",
+              "cells": [
+                "L-Metionina (mg)",
+                "768"
+              ],
+              "text": "L-Metionina (mg) | 768"
+            },
+            {
+              "label": "L-Fenilalanina (mg)",
+              "cells": [
+                "L-Fenilalanina (mg)",
+                "816"
+              ],
+              "text": "L-Fenilalanina (mg) | 816"
+            },
+            {
+              "label": "L-Prolina (mg)",
+              "cells": [
+                "L-Prolina (mg)",
+                "1755"
+              ],
+              "text": "L-Prolina (mg) | 1755"
+            },
+            {
+              "label": "L-Serina (mg)",
+              "cells": [
+                "L-Serina (mg)",
+                "1449"
+              ],
+              "text": "L-Serina (mg) | 1449"
+            },
+            {
+              "label": "L-Treonina (mg)",
+              "cells": [
+                "L-Treonina (mg)",
+                "2277"
+              ],
+              "text": "L-Treonina (mg) | 2277"
+            },
+            {
+              "label": "Triptofano (mg)",
+              "cells": [
+                "Triptofano (mg)",
+                "543"
+              ],
+              "text": "Triptofano (mg) | 543"
+            },
+            {
+              "label": "L-Tirosina (mg)",
+              "cells": [
+                "L-Tirosina (mg)",
+                "858"
+              ],
+              "text": "L-Tirosina (mg) | 858"
+            },
+            {
+              "label": "L-Valina (mg)",
+              "cells": [
+                "L-Valina (mg)",
+                "1626"
+              ],
+              "text": "L-Valina (mg) | 1626"
+            },
+            {
+              "label": "Gorduras totais (g)",
+              "cells": [
+                "Gorduras totais (g)",
+                "0",
+                "0"
+              ],
+              "text": "Gorduras totais (g) | 0 | 0"
+            },
+            {
+              "label": "Gorduras saturadas (g)",
+              "cells": [
+                "Gorduras saturadas (g)",
+                "0",
+                "0"
+              ],
+              "text": "Gorduras saturadas (g) | 0 | 0"
+            },
+            {
+              "label": "Gorduras trans (g)",
+              "cells": [
+                "Gorduras trans (g)",
+                "0",
+                "0"
+              ],
+              "text": "Gorduras trans (g) | 0 | 0"
+            },
+            {
+              "label": "Fibras alimentares (g)",
+              "cells": [
+                "Fibras alimentares (g)",
+                "0",
+                "0"
+              ],
+              "text": "Fibras alimentares (g) | 0 | 0"
+            },
+            {
+              "label": "Sódio (mg)",
+              "cells": [
+                "Sódio (mg)",
+                "44",
+                "2"
+              ],
+              "text": "Sódio (mg) | 44 | 2"
+            },
+            {
+              "label": "*Percentual de valores diários fornecidos pela porção.",
+              "cells": [
+                "*Percentual de valores diários fornecidos pela porção."
+              ],
+              "text": "*Percentual de valores diários fornecidos pela porção."
+            }
+          ],
+          "text": "INFORMAÇÃO NUTRICIONAL\nPorções por embalagem: 33\nPorção: 30 g (2+½ dosadores)\n30 g\t%VD*\nValor energético (kcal)\t116\t6\nCarboidratos (g)\t2\t1\nAçúcares totais (g)\t0\nAçúcares adicionados (g)\t0\t0\nProteínas (g)\t27\t54\nL-Alanina (mg)\t1389\nArginina (mg)\t516\nAspartato (mg)\t3201\nL-Cisteína (mg)\t651\nÁcido L-Glutâmico (mg)\t5049\nGlicina (mg)\t477\nL-Histidina (mg)\t384\nL-Isoleucina (mg)\t1854\nL-Leucina (mg)\t2838\nLisina (mg)\t2682\nL-Metionina (mg)\t768\nL-Fenilalanina (mg)\t816\nL-Prolina (mg)\t1755\nL-Serina (mg)\t1449\nL-Treonina (mg)\t2277\nTriptofano (mg)\t543\nL-Tirosina (mg)\t858\nL-Valina (mg)\t1626\nGorduras totais (g)\t0\t0\nGorduras saturadas (g)\t0\t0\nGorduras trans (g)\t0\t0\nFibras alimentares (g)\t0\t0\nSódio (mg)\t44\t2\n*Percentual de valores diários fornecidos pela porção."
+        },
+        "carbProteinRatio": 0.07407407407407407,
+        "image": "assets/products/top-whey-protein-isolado-1kg-4d01a7c66b.webp"
+      },
+      {
+        "brand": "Growth Supplements",
+        "name": "Medium Whey Protein 1Kg",
+        "type": "Whey protein",
+        "amount": 1,
+        "unit": "kg",
+        "price": 94.33,
+        "url": "https://www.gsuplementos.com.br/medium-whey-protein-1kg-growth-supplements-p986001",
+        "carbohydrateGrams": 8.7,
+        "proteinGrams": 17,
+        "nutritionTable": {
+          "servingSize": "30 g (2 dosadores)",
+          "rows": [
+            {
+              "label": "INFORMAÇÃO NUTRICIONAL",
+              "cells": [
+                "INFORMAÇÃO NUTRICIONAL"
+              ],
+              "text": "INFORMAÇÃO NUTRICIONAL"
+            },
+            {
+              "label": "Porções por embalagem: Cerca de 33 Porção: 30 g (2 dosadores)",
+              "cells": [
+                "Porções por embalagem: Cerca de 33 Porção: 30 g (2 dosadores)"
+              ],
+              "text": "Porções por embalagem: Cerca de 33 Porção: 30 g (2 dosadores)"
+            },
+            {
+              "label": "30 g",
+              "cells": [
+                "30 g",
+                "%VD*"
+              ],
+              "text": "30 g | %VD*"
+            },
+            {
+              "label": "Valor energético (kcal)",
+              "cells": [
+                "Valor energético (kcal)",
+                "121",
+                "6"
+              ],
+              "text": "Valor energético (kcal) | 121 | 6"
+            },
+            {
+              "label": "Carboidratos (g)",
+              "cells": [
+                "Carboidratos (g)",
+                "8,7",
+                "3"
+              ],
+              "text": "Carboidratos (g) | 8,7 | 3"
+            },
+            {
+              "label": "Açúcares totais (g)",
+              "cells": [
+                "Açúcares totais (g)",
+                "7,9"
+              ],
+              "text": "Açúcares totais (g) | 7,9"
+            },
+            {
+              "label": "Açúcares adicionados (g)",
+              "cells": [
+                "Açúcares adicionados (g)",
+                "0",
+                "0"
+              ],
+              "text": "Açúcares adicionados (g) | 0 | 0"
+            },
+            {
+              "label": "Proteínas (g)",
+              "cells": [
+                "Proteínas (g)",
+                "17",
+                "34"
+              ],
+              "text": "Proteínas (g) | 17 | 34"
+            },
+            {
+              "label": "Gorduras totais (g)",
+              "cells": [
+                "Gorduras totais (g)",
+                "2",
+                "3"
+              ],
+              "text": "Gorduras totais (g) | 2 | 3"
+            },
+            {
+              "label": "Gorduras saturadas (g)",
+              "cells": [
+                "Gorduras saturadas (g)",
+                "1",
+                "5"
+              ],
+              "text": "Gorduras saturadas (g) | 1 | 5"
+            },
+            {
+              "label": "Gorduras trans (g)",
+              "cells": [
+                "Gorduras trans (g)",
+                "0",
+                "0"
+              ],
+              "text": "Gorduras trans (g) | 0 | 0"
+            },
+            {
+              "label": "Fibras alimentares (g)",
+              "cells": [
+                "Fibras alimentares (g)",
+                "0",
+                "0"
+              ],
+              "text": "Fibras alimentares (g) | 0 | 0"
+            },
+            {
+              "label": "Sódio",
+              "cells": [
+                "Sódio",
+                "76",
+                "4"
+              ],
+              "text": "Sódio | 76 | 4"
+            },
+            {
+              "label": "*Percentual de valores diários fornecidos pela porção.",
+              "cells": [
+                "*Percentual de valores diários fornecidos pela porção."
+              ],
+              "text": "*Percentual de valores diários fornecidos pela porção."
+            }
+          ],
+          "text": "INFORMAÇÃO NUTRICIONAL\nPorções por embalagem: Cerca de 33\nPorção: 30 g (2 dosadores)\n30 g\t%VD*\nValor energético (kcal)\t121\t6\nCarboidratos (g)\t8,7\t3\nAçúcares totais (g)\t7,9\nAçúcares adicionados (g)\t0\t0\nProteínas (g)\t17\t34\nGorduras totais (g)\t2\t3\nGorduras saturadas (g)\t1\t5\nGorduras trans (g)\t0\t0\nFibras alimentares (g)\t0\t0\nSódio\t76\t4\n*Percentual de valores diários fornecidos pela porção."
+        },
+        "carbProteinRatio": 0.5117647058823529,
+        "image": "assets/products/medium-whey-protein-1kg-ddc5655e6f.webp"
+      },
+      {
+        "brand": "Growth Supplements",
+        "name": "Basic Whey Protein 1Kg",
+        "type": "Whey protein",
+        "amount": 1,
+        "unit": "kg",
+        "price": 77.66,
+        "url": "https://www.gsuplementos.com.br/basic-whey-protein-1kg-growth-supplements-p986000",
+        "carbohydrateGrams": 15,
+        "proteinGrams": 10,
+        "nutritionTable": {
+          "servingSize": "30 g (1+ ¹/² dosadores)",
+          "rows": [
+            {
+              "label": "INFORMAÇÃO NUTRICIONAL",
+              "cells": [
+                "INFORMAÇÃO NUTRICIONAL"
+              ],
+              "text": "INFORMAÇÃO NUTRICIONAL"
+            },
+            {
+              "label": "Porções por embalagem: Cerca de 33 Porção: 30 g (1+ ¹/² dosadores)",
+              "cells": [
+                "Porções por embalagem: Cerca de 33 Porção: 30 g (1+ ¹/² dosadores)"
+              ],
+              "text": "Porções por embalagem: Cerca de 33 Porção: 30 g (1+ ¹/² dosadores)"
+            },
+            {
+              "label": "30 g",
+              "cells": [
+                "30 g",
+                "%VD*"
+              ],
+              "text": "30 g | %VD*"
+            },
+            {
+              "label": "Valor energético (kcal)",
+              "cells": [
+                "Valor energético (kcal)",
+                "118",
+                "6"
+              ],
+              "text": "Valor energético (kcal) | 118 | 6"
+            },
+            {
+              "label": "Carboidratos (g)",
+              "cells": [
+                "Carboidratos (g)",
+                "15",
+                "5"
+              ],
+              "text": "Carboidratos (g) | 15 | 5"
+            },
+            {
+              "label": "Açúcares totais (g)",
+              "cells": [
+                "Açúcares totais (g)",
+                "14"
+              ],
+              "text": "Açúcares totais (g) | 14"
+            },
+            {
+              "label": "Açúcares adicionados (g)",
+              "cells": [
+                "Açúcares adicionados (g)",
+                "0",
+                "0"
+              ],
+              "text": "Açúcares adicionados (g) | 0 | 0"
+            },
+            {
+              "label": "Proteínas (g)",
+              "cells": [
+                "Proteínas (g)",
+                "10",
+                "20"
+              ],
+              "text": "Proteínas (g) | 10 | 20"
+            },
+            {
+              "label": "Gorduras totais (g)",
+              "cells": [
+                "Gorduras totais (g)",
+                "2",
+                "3"
+              ],
+              "text": "Gorduras totais (g) | 2 | 3"
+            },
+            {
+              "label": "Gorduras saturadas (g)",
+              "cells": [
+                "Gorduras saturadas (g)",
+                "1,2",
+                "6"
+              ],
+              "text": "Gorduras saturadas (g) | 1,2 | 6"
+            },
+            {
+              "label": "Gorduras trans (g)",
+              "cells": [
+                "Gorduras trans (g)",
+                "0,1",
+                "5"
+              ],
+              "text": "Gorduras trans (g) | 0,1 | 5"
+            },
+            {
+              "label": "Fibras alimentares (g)",
+              "cells": [
+                "Fibras alimentares (g)",
+                "0",
+                "0"
+              ],
+              "text": "Fibras alimentares (g) | 0 | 0"
+            },
+            {
+              "label": "Sódio (mg)",
+              "cells": [
+                "Sódio (mg)",
+                "104",
+                "5"
+              ],
+              "text": "Sódio (mg) | 104 | 5"
+            },
+            {
+              "label": "*Percentual de valores diários fornecidos pela porção.",
+              "cells": [
+                "*Percentual de valores diários fornecidos pela porção."
+              ],
+              "text": "*Percentual de valores diários fornecidos pela porção."
+            }
+          ],
+          "text": "INFORMAÇÃO NUTRICIONAL\nPorções por embalagem: Cerca de 33\nPorção: 30 g (1+ ¹/² dosadores)\n30 g\t%VD*\nValor energético (kcal)\t118\t6\nCarboidratos (g)\t15\t5\nAçúcares totais (g)\t14\nAçúcares adicionados (g)\t0\t0\nProteínas (g)\t10\t20\nGorduras totais (g)\t2\t3\nGorduras saturadas (g)\t1,2\t6\nGorduras trans (g)\t0,1\t5\nFibras alimentares (g)\t0\t0\nSódio (mg)\t104\t5\n*Percentual de valores diários fornecidos pela porção."
+        },
+        "carbProteinRatio": 1.5,
+        "image": "assets/products/basic-whey-protein-1kg-9d7643184c.webp"
+      },
+      {
+        "brand": "Growth Supplements",
+        "name": "(TOP) Whey e Egg Sabor Natural 1Kg",
+        "type": "Blend",
+        "amount": 1,
+        "unit": "kg",
+        "price": 144.33,
+        "url": "https://www.gsuplementos.com.br/top-whey-e-egg-sabor-natural-1kg-growth-supplements-p985811",
+        "carbohydrateGrams": 2.6,
+        "proteinGrams": 24,
+        "nutritionTable": {
+          "servingSize": "30 g (2 dosadores)",
+          "rows": [
+            {
+              "label": "INFORMAÇÃO NUTRICIONAL",
+              "cells": [
+                "INFORMAÇÃO NUTRICIONAL"
+              ],
+              "text": "INFORMAÇÃO NUTRICIONAL"
+            },
+            {
+              "label": "Porções por embalagem: 33 Porção: 30 g (2 dosadores)",
+              "cells": [
+                "Porções por embalagem: 33 Porção: 30 g (2 dosadores)"
+              ],
+              "text": "Porções por embalagem: 33 Porção: 30 g (2 dosadores)"
+            },
+            {
+              "label": "30 g",
+              "cells": [
+                "30 g",
+                "%VD*"
+              ],
+              "text": "30 g | %VD*"
+            },
+            {
+              "label": "Valor energético (kcal)",
+              "cells": [
+                "Valor energético (kcal)",
+                "115",
+                "6"
+              ],
+              "text": "Valor energético (kcal) | 115 | 6"
+            },
+            {
+              "label": "Carboidratos (g)",
+              "cells": [
+                "Carboidratos (g)",
+                "2,6",
+                "1"
+              ],
+              "text": "Carboidratos (g) | 2,6 | 1"
+            },
+            {
+              "label": "Açúcares totais (g)",
+              "cells": [
+                "Açúcares totais (g)",
+                "1,7"
+              ],
+              "text": "Açúcares totais (g) | 1,7"
+            },
+            {
+              "label": "Açúcares adicionados (g)",
+              "cells": [
+                "Açúcares adicionados (g)",
+                "0,1",
+                "0"
+              ],
+              "text": "Açúcares adicionados (g) | 0,1 | 0"
+            },
+            {
+              "label": "Proteínas (g)",
+              "cells": [
+                "Proteínas (g)",
+                "24",
+                "48"
+              ],
+              "text": "Proteínas (g) | 24 | 48"
+            },
+            {
+              "label": "Gorduras totais (g)",
+              "cells": [
+                "Gorduras totais (g)",
+                "1",
+                "2"
+              ],
+              "text": "Gorduras totais (g) | 1 | 2"
+            },
+            {
+              "label": "Gorduras saturadas (g)",
+              "cells": [
+                "Gorduras saturadas (g)",
+                "0,5",
+                "3"
+              ],
+              "text": "Gorduras saturadas (g) | 0,5 | 3"
+            },
+            {
+              "label": "Gorduras trans (g)",
+              "cells": [
+                "Gorduras trans (g)",
+                "0",
+                "0"
+              ],
+              "text": "Gorduras trans (g) | 0 | 0"
+            },
+            {
+              "label": "Fibras Alimentares (g)",
+              "cells": [
+                "Fibras Alimentares (g)",
+                "0",
+                "0"
+              ],
+              "text": "Fibras Alimentares (g) | 0 | 0"
+            },
+            {
+              "label": "Sódio (mg)",
+              "cells": [
+                "Sódio (mg)",
+                "152",
+                "8"
+              ],
+              "text": "Sódio (mg) | 152 | 8"
+            },
+            {
+              "label": "*Percentual de valores diários fornecidos pela porção.",
+              "cells": [
+                "*Percentual de valores diários fornecidos pela porção."
+              ],
+              "text": "*Percentual de valores diários fornecidos pela porção."
+            }
+          ],
+          "text": "INFORMAÇÃO NUTRICIONAL\nPorções por embalagem: 33\nPorção: 30 g (2 dosadores)\n30 g\t%VD*\nValor energético (kcal)\t115\t6\nCarboidratos (g)\t2,6\t1\nAçúcares totais (g)\t1,7\nAçúcares adicionados (g)\t0,1\t0\nProteínas (g)\t24\t48\nGorduras totais (g)\t1\t2\nGorduras saturadas (g)\t0,5\t3\nGorduras trans (g)\t0\t0\nFibras Alimentares (g)\t0\t0\nSódio (mg)\t152\t8\n*Percentual de valores diários fornecidos pela porção."
+        },
+        "carbProteinRatio": 0.10833333333333334,
+        "image": "assets/products/top-whey-e-egg-sabor-natural-1kg-8e651de93f.webp"
+      },
+      {
+        "brand": "Growth Supplements",
+        "name": "Whey Protein Hidrolisado 1Kg Sabor Natural",
+        "type": "Hidrolisado",
+        "amount": 1,
+        "unit": "kg",
+        "price": 499.88,
+        "url": "https://www.gsuplementos.com.br/whey-protein-hidrolisado-1kg-sabor-natural-growth-supplements-p985872",
+        "carbohydrateGrams": 0.6,
+        "proteinGrams": 27,
+        "nutritionTable": {
+          "servingSize": "30 g (2 dosadores)",
+          "rows": [
+            {
+              "label": "INFORMAÇÃO NUTRICIONAL",
+              "cells": [
+                "INFORMAÇÃO NUTRICIONAL"
+              ],
+              "text": "INFORMAÇÃO NUTRICIONAL"
+            },
+            {
+              "label": "Porções por embalagem: Cerca de 33 Porção: 30 g (2 dosadores)",
+              "cells": [
+                "Porções por embalagem: Cerca de 33 Porção: 30 g (2 dosadores)"
+              ],
+              "text": "Porções por embalagem: Cerca de 33 Porção: 30 g (2 dosadores)"
+            },
+            {
+              "label": "30 g",
+              "cells": [
+                "30 g",
+                "%VD*"
+              ],
+              "text": "30 g | %VD*"
+            },
+            {
+              "label": "Valor energético (kcal)",
+              "cells": [
+                "Valor energético (kcal)",
+                "115",
+                "6"
+              ],
+              "text": "Valor energético (kcal) | 115 | 6"
+            },
+            {
+              "label": "Carboidratos (g)",
+              "cells": [
+                "Carboidratos (g)",
+                "0,6",
+                "0"
+              ],
+              "text": "Carboidratos (g) | 0,6 | 0"
+            },
+            {
+              "label": "Açúcares totais (g)",
+              "cells": [
+                "Açúcares totais (g)",
+                "0,5"
+              ],
+              "text": "Açúcares totais (g) | 0,5"
+            },
+            {
+              "label": "Açúcares adicionados (g)",
+              "cells": [
+                "Açúcares adicionados (g)",
+                "0",
+                "0"
+              ],
+              "text": "Açúcares adicionados (g) | 0 | 0"
+            },
+            {
+              "label": "Proteínas (g)",
+              "cells": [
+                "Proteínas (g)",
+                "27",
+                "54"
+              ],
+              "text": "Proteínas (g) | 27 | 54"
+            },
+            {
+              "label": "L-Alanina (mg)",
+              "cells": [
+                "L-Alanina (mg)",
+                "1260"
+              ],
+              "text": "L-Alanina (mg) | 1260"
+            },
+            {
+              "label": "Arginina (mg)",
+              "cells": [
+                "Arginina (mg)",
+                "600"
+              ],
+              "text": "Arginina (mg) | 600"
+            },
+            {
+              "label": "Aspartato (mg)",
+              "cells": [
+                "Aspartato (mg)",
+                "2820"
+              ],
+              "text": "Aspartato (mg) | 2820"
+            },
+            {
+              "label": "L-Cisteína (mg)",
+              "cells": [
+                "L-Cisteína (mg)",
+                "690"
+              ],
+              "text": "L-Cisteína (mg) | 690"
+            },
+            {
+              "label": "Ácido L-Glutâmico (mg)",
+              "cells": [
+                "Ácido L-Glutâmico (mg)",
+                "4770"
+              ],
+              "text": "Ácido L-Glutâmico (mg) | 4770"
+            },
+            {
+              "label": "Glicina (mg)",
+              "cells": [
+                "Glicina (mg)",
+                "450"
+              ],
+              "text": "Glicina (mg) | 450"
+            },
+            {
+              "label": "L-Histidina (mg)",
+              "cells": [
+                "L-Histidina (mg)",
+                "420"
+              ],
+              "text": "L-Histidina (mg) | 420"
+            },
+            {
+              "label": "L-Isoleucina (mg)",
+              "cells": [
+                "L-Isoleucina (mg)",
+                "1620"
+              ],
+              "text": "L-Isoleucina (mg) | 1620"
+            },
+            {
+              "label": "L-Leucina (mg)",
+              "cells": [
+                "L-Leucina (mg)",
+                "2730"
+              ],
+              "text": "L-Leucina (mg) | 2730"
+            },
+            {
+              "label": "Lisina (mg)",
+              "cells": [
+                "Lisina (mg)",
+                "2730"
+              ],
+              "text": "Lisina (mg) | 2730"
+            },
+            {
+              "label": "L-Metionina (mg)",
+              "cells": [
+                "L-Metionina (mg)",
+                "570"
+              ],
+              "text": "L-Metionina (mg) | 570"
+            },
+            {
+              "label": "L-Fenilalanina (mg)",
+              "cells": [
+                "L-Fenilalanina (mg)",
+                "780"
+              ],
+              "text": "L-Fenilalanina (mg) | 780"
+            },
+            {
+              "label": "L-Prolina (mg)",
+              "cells": [
+                "L-Prolina (mg)",
+                "1560"
+              ],
+              "text": "L-Prolina (mg) | 1560"
+            },
+            {
+              "label": "L-Serina (mg)",
+              "cells": [
+                "L-Serina (mg)",
+                "1110"
+              ],
+              "text": "L-Serina (mg) | 1110"
+            },
+            {
+              "label": "L-Treonina (mg)",
+              "cells": [
+                "L-Treonina (mg)",
+                "1770"
+              ],
+              "text": "L-Treonina (mg) | 1770"
+            },
+            {
+              "label": "Triptofano (mg)",
+              "cells": [
+                "Triptofano (mg)",
+                "480"
+              ],
+              "text": "Triptofano (mg) | 480"
+            },
+            {
+              "label": "L-Tirosina (mg)",
+              "cells": [
+                "L-Tirosina (mg)",
+                "750"
+              ],
+              "text": "L-Tirosina (mg) | 750"
+            },
+            {
+              "label": "L-Valina (mg)",
+              "cells": [
+                "L-Valina (mg)",
+                "1320"
+              ],
+              "text": "L-Valina (mg) | 1320"
+            },
+            {
+              "label": "Gorduras totais (g)",
+              "cells": [
+                "Gorduras totais (g)",
+                "0,5",
+                "1"
+              ],
+              "text": "Gorduras totais (g) | 0,5 | 1"
+            },
+            {
+              "label": "Gorduras saturadas (g)",
+              "cells": [
+                "Gorduras saturadas (g)",
+                "0,2",
+                "1"
+              ],
+              "text": "Gorduras saturadas (g) | 0,2 | 1"
+            },
+            {
+              "label": "Gorduras trans (g)",
+              "cells": [
+                "Gorduras trans (g)",
+                "0",
+                "0"
+              ],
+              "text": "Gorduras trans (g) | 0 | 0"
+            },
+            {
+              "label": "Fibras alimentares (g)",
+              "cells": [
+                "Fibras alimentares (g)",
+                "0",
+                "0"
+              ],
+              "text": "Fibras alimentares (g) | 0 | 0"
+            },
+            {
+              "label": "Sódio (mg)",
+              "cells": [
+                "Sódio (mg)",
+                "68",
+                "3"
+              ],
+              "text": "Sódio (mg) | 68 | 3"
+            },
+            {
+              "label": "*Percentual de valores diários fornecidos pela porção.",
+              "cells": [
+                "*Percentual de valores diários fornecidos pela porção."
+              ],
+              "text": "*Percentual de valores diários fornecidos pela porção."
+            }
+          ],
+          "text": "INFORMAÇÃO NUTRICIONAL\nPorções por embalagem: Cerca de 33\nPorção: 30 g (2 dosadores)\n30 g\t%VD*\nValor energético (kcal)\t115\t6\nCarboidratos (g)\t0,6\t0\nAçúcares totais (g)\t0,5\nAçúcares adicionados (g)\t0\t0\nProteínas (g)\t27\t54\nL-Alanina (mg)\t1260\nArginina (mg)\t600\nAspartato (mg)\t2820\nL-Cisteína (mg)\t690\nÁcido L-Glutâmico (mg)\t4770\nGlicina (mg)\t450\nL-Histidina (mg)\t420\nL-Isoleucina (mg)\t1620\nL-Leucina (mg)\t2730\nLisina (mg)\t2730\nL-Metionina (mg)\t570\nL-Fenilalanina (mg)\t780\nL-Prolina (mg)\t1560\nL-Serina (mg)\t1110\nL-Treonina (mg)\t1770\nTriptofano (mg)\t480\nL-Tirosina (mg)\t750\nL-Valina (mg)\t1320\nGorduras totais (g)\t0,5\t1\nGorduras saturadas (g)\t0,2\t1\nGorduras trans (g)\t0\t0\nFibras alimentares (g)\t0\t0\nSódio (mg)\t68\t3\n*Percentual de valores diários fornecidos pela porção."
+        },
+        "carbProteinRatio": 0.022222222222222223,
+        "image": "assets/products/whey-protein-hidrolisado-1kg-sabor-natural-5fafc800a4.webp"
+      }
+    ]
+  }
+}
