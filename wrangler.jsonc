@@ -1,0 +1,8 @@
+// Cloudflare Workers config: serves the static site built by `npm run build`.
+{
+  "name": "compensa",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist"
+  }
+}
