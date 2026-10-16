@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(root, 'dist');
-const files = ['script.js', 'styles.css', 'favicon.svg', 'og-image.png', 'privacidade.html', '_headers', 'data/products.json'];
+const files = ['script.js', 'styles.css', 'favicon.svg', 'og-image.png', 'privacidade.html', '_headers', 'robots.txt', 'data/products.json'];
 
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
@@ -17,6 +17,11 @@ for (const file of files) await cp(path.join(root, file), path.join(dist, file))
 const siteUrl = (process.env.SITE_URL || '').replace(/\/$/, '');
 const index = await readFile(path.join(root, 'index.html'), 'utf8');
 await writeFile(path.join(dist, 'index.html'), siteUrl ? index.replace('content="/og-image.png"', `content="${siteUrl}/og-image.png"`) : index);
+
+// The sitemap lists both pages, dated by the last catalog update.
+const catalogDate = JSON.parse(await readFile(path.join(root, 'data/products.json'), 'utf8')).updatedAt?.slice(0, 10);
+const pageUrls = ['/', '/privacidade.html'].map((page) => `  <url><loc>https://compensaprecos.com.br${page}</loc>${catalogDate ? `<lastmod>${catalogDate}</lastmod>` : ''}</url>`);
+await writeFile(path.join(dist, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pageUrls.join('\n')}\n</urlset>\n`);
 
 const catalog = JSON.parse(await readFile(path.join(root, 'data/products.json'), 'utf8'));
 const images = Object.values(catalog.products).flat().map((product) => product.image).filter(Boolean);

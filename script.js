@@ -21,10 +21,10 @@ function isDirectProductUrl(value) {
     const growthProduct = url.hostname === 'www.gsuplementos.com.br' && /-p\d+$/i.test(url.pathname);
     const maxTitaniumProduct = url.hostname === 'www.maxtitanium.com.br' && /\/p$/i.test(url.pathname);
     const essentialNutritionProduct = url.hostname === 'www.essentialnutrition.com.br' && /^\/[^/]*whey[^/]*\/?$/i.test(url.pathname);
-    const dutraProduct = url.hostname === 'www.dutra.com.br' && /^\/p\/protetor-solar[^/]*\/?$/i.test(url.pathname);
+    const lojaDoMecanicoProduct = url.hostname === 'www.lojadomecanico.com.br' && /^\/produto\/\d+\//.test(url.pathname);
     const vtexSunscreenProduct = ['www.lojaadcos.com.br', 'www.dermage.com.br', 'www.drogariasaopaulo.com.br'].includes(url.hostname)
       && /\/p$/i.test(url.pathname);
-    return growthProduct || maxTitaniumProduct || essentialNutritionProduct || dutraProduct || vtexSunscreenProduct;
+    return growthProduct || maxTitaniumProduct || essentialNutritionProduct || lojaDoMecanicoProduct || vtexSunscreenProduct;
   } catch {
     return false;
   }
@@ -60,8 +60,11 @@ function getUnitPrice(product, category = activeCategory) {
   return ['ml', 'l'].includes(product.unit) || category === 'sunscreen' ? unitValue * 100 : unitValue * 1000;
 }
 
-function getUnitLabel(category) {
-  return category === 'whey' ? '100 g de proteína' : '100 ml/g';
+// Sunscreens sold by volume and by weight are compared separately.
+const sunscreenMeasure = (product) => (product.unit === 'g' ? 'g' : 'ml');
+
+function getUnitLabel(category, product) {
+  return category === 'whey' ? '100 g de proteína' : `100 ${sunscreenMeasure(product)}`;
 }
 
 function formatAmount(product) {
@@ -260,6 +263,8 @@ function renderFilters() {
   if (activeCategory === 'sunscreen') {
     const spfs = [...new Set(categoryProducts.map((product) => product.spf).filter(Number.isFinite))].sort((a, b) => a - b);
     markup += addFilter('FPS', 'spf', spfs.map(String), 'Todos');
+    markup += `<div class="filter-control"><label for="filter-measure">Medida</label><select id="filter-measure" data-filter="measure">
+      <option value="ml">ml (loções, fluidos, sprays)</option><option value="g">g (cremes, géis, bastões)</option></select></div>`;
   }
   markup += `<div class="filter-control sort-control"><span class="sort-label">Ordenar por</span><div class="sort-buttons" role="group" aria-label="Ordenar por">${renderSortButtons()}</div></div>`;
 
@@ -273,7 +278,7 @@ function renderProducts() {
   const filtered = linkedProducts
     .filter((product) => Object.entries(selectedFilters).every(([key, value]) => {
       if (!value) return true;
-      return String(product[key]) === value;
+      return String(key === 'measure' ? sunscreenMeasure(product) : product[key]) === value;
     }))
     .map((product) => ({ ...product, unitPrice: getUnitPrice(product, activeCategory) }))
     .sort((a, b) => {
@@ -302,8 +307,8 @@ function renderProducts() {
   }
 
   const bestPrice = Math.min(...filtered.map((product) => product.unitPrice).filter(Number.isFinite));
-  const unitLabel = getUnitLabel(activeCategory);
   productGrid.innerHTML = filtered.map((product, productIndex) => {
+    const unitLabel = getUnitLabel(activeCategory, product);
     const isBest = Number.isFinite(product.unitPrice) && product.unitPrice === bestPrice;
     const productLink = `<a class="product-link" href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer">Ver produto ↗</a>`;
     const productImage = product.image

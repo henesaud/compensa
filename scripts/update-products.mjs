@@ -31,10 +31,10 @@ const sources = [
     ],
   },
   {
-    brand: 'Dutra',
+    brand: 'Loja do Mecânico',
     productBrand: 'Nutriex',
-    origin: 'https://www.dutra.com.br',
-    searchUrl: 'https://www.dutra.com.br/c/cuidados-pessoais-protetores-solares',
+    origin: 'https://www.lojadomecanico.com.br',
+    searchUrl: 'https://www.lojadomecanico.com.br/setor/36/802/976/V/683/1/protetor-solar-cremes-de-protecao-e-higienizacao-protetor-solar-nutriex',
     category: 'sunscreen',
   },
 ];
@@ -82,7 +82,7 @@ function productType(name, category) {
 
 function parseSpf(name) {
   const text = String(name);
-  const match = text.match(/\bfps\s*(\d{2,3})\b/i) || text.match(/\b(\d{2,3})\s*fps\b/i);
+  const match = text.match(/\b(?:fps|fator)\s*(\d{2,3})\b/i) || text.match(/\b(\d{2,3})\s*fps\b/i);
   const value = match ? Number(match[1]) : null;
   return Number.isFinite(value) && value >= 15 && value <= 100 ? value : null;
 }
@@ -127,86 +127,49 @@ function isDirectProductUrl(value, source) {
     if (source.brand === 'Max Titanium') return /\/p$/i.test(url.pathname);
     if (source.brand === 'Essential Nutrition') return /^\/[^/]*whey[^/]*\/?$/i.test(url.pathname);
     if (source.vtex) return /\/p$/i.test(url.pathname);
-    if (source.brand === 'Dutra') return url.hostname === 'www.dutra.com.br' && /^\/p\/protetor-solar[^/]*\/?$/i.test(url.pathname);
+    if (source.brand === 'Loja do Mecânico') return /^\/produto\/\d+\//.test(url.pathname);
     return false;
   } catch {
     return false;
   }
 }
 
-async function scrapeDutraSunscreens(page, source) {
+// Each product card holds one product link, its name and the cash price
+// ("R$ 13,90 à vista no Pix ou Boleto"). Kits of several units are skipped.
+async function scrapeLojaDoMecanicoSunscreens(page, source) {
   console.log(`Searching ${source.brand}: ${source.searchUrl}`);
   await page.goto(source.searchUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await page.waitForTimeout(1800);
-  const extracted = await page.locator('a[href]').evaluateAll((anchors, origin) => {
-    const absoluteImageUrl = (value) => {
-      try {
-        const url = new URL(value, location.href);
-        return url.protocol === 'https:' ? url.href : '';
-      } catch { return ''; }
-    };
-    const seen = new Set();
-    const result = [];
-    const productPath = /^\/p\/protetor-solar[^/]*\/?$/i;
-    for (const anchor of anchors) {
-      let productUrl;
-      try {
-        const url = new URL(anchor.href);
-        if (url.origin !== origin || !productPath.test(url.pathname)) continue;
-        productUrl = url.href;
-      } catch { continue; }
-      if (seen.has(productUrl)) continue;
-      seen.add(productUrl);
-
-      let card = null;
-      for (let element = anchor, depth = 0; element && depth < 9; element = element.parentElement, depth += 1) {
-        const text = (element.innerText || '').replace(/\s+/g, ' ').trim();
-        const productUrls = new Set([...element.querySelectorAll('a[href]')].flatMap((link) => {
-          try {
-            const url = new URL(link.href);
-            return url.origin === origin && productPath.test(url.pathname) ? [url.pathname] : [];
-          } catch { return []; }
-        }));
-        if (text.length < 1800 && /R\$\s*[\d.]+,\d{2}/i.test(text) && /\d+(?:[.,]\d+)?\s*(?:ml|l(?:itros?)?)\b/i.test(text)
-          && /Nutriex/i.test(text) && productUrls.size === 1) {
-          card = element;
-          break;
-        }
-      }
-      if (!card) continue;
-      const text = (card.innerText || '').replace(/\s+/g, ' ').trim();
-      const candidates = [anchor.innerText, anchor.getAttribute('title'), anchor.querySelector('img')?.alt,
-        ...[...card.querySelectorAll('h2,h3,[data-testid*="title"],[class*="title"]')].map((node) => node.innerText)]
-        .map((value) => (value || '').replace(/\s+/g, ' ').trim())
-        .filter((value) => /fps\s*\d{2,3}/i.test(value) && /\d+(?:[.,]\d+)?\s*(?:ml|l(?:itros?)?)\b/i.test(value));
-      const name = candidates.sort((a, b) => a.length - b.length)[0];
-      if (!name) continue;
-      const prices = [...text.matchAll(/R\$\s*([\d.]+,\d{2})/gi)];
-      const priceMatch = prices.filter((match) => {
-        const before = text.slice(Math.max(0, match.index - 20), match.index);
-        return !/\d+\s*x\s*(?:de\s*)?$/i.test(before);
-      }).sort((a, b) => Number(a[1].replace(/\./g, '').replace(',', '.')) - Number(b[1].replace(/\./g, '').replace(',', '.')))[0];
-      if (!priceMatch) continue;
-      const image = card.querySelector('img');
-      const cleanName = name.replace(/(?:…|\.\.\.)\s*$/, '').replace(/\s*-\s*$/, '').trim();
-      result.push({
-        name: /^nutriex/i.test(cleanName) ? cleanName : `Nutriex ${cleanName}`, price: priceMatch[1], url: productUrl,
-        imageUrl: absoluteImageUrl(image?.currentSrc || image?.getAttribute('data-src') || image?.src || ''),
-        brand: 'Nutriex',
-      });
-    }
-    return result;
-  }, source.origin);
-
-  const products = new Map();
-  for (const raw of extracted) {
-    const product = toProduct(raw, 'sunscreen', source);
-    if (!product?.url) continue;
-    const identity = `${product.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()}:${product.amount}${product.unit}`;
-    const existing = products.get(identity);
-    if (!existing || product.price < existing.price) products.set(identity, product);
+  await page.waitForTimeout(3000);
+  // Card images load lazily, so scroll through the list first.
+  for (let y = 0; y < await page.evaluate(() => document.body.scrollHeight); y += 600) {
+    await page.evaluate((top) => window.scrollTo(0, top), y);
+    await page.waitForTimeout(150);
   }
-  return [...products.values()];
+  const extracted = await page.locator('a[href*="/produto/"]').evaluateAll((anchors) => {
+    const result = new Map();
+    for (const anchor of anchors) {
+      if (result.has(anchor.href)) continue;
+      for (let card = anchor, depth = 0; card && depth < 8; card = card.parentElement, depth += 1) {
+        if (new Set([...card.querySelectorAll('a[href*="/produto/"]')].map((link) => link.href)).size > 1) break;
+        const text = (card.innerText || '').replace(/\s+/g, ' ').trim();
+        const price = text.match(/R\$\s*([\d.]+,\d{2})\s*à vista/i);
+        if (!price) continue;
+        const image = card.querySelector('img');
+        const name = [anchor.getAttribute('title'), image?.alt, anchor.innerText]
+          .map((value) => (value || '').replace(/\s+/g, ' ').trim())
+          .filter((value) => /nutriex/i.test(value)).sort((a, b) => b.length - a.length)[0];
+        if (name) result.set(anchor.href, { name, price: price[1], url: anchor.href, imageUrl: image?.getAttribute('data-src') || image?.currentSrc || image?.src, brand: 'Nutriex' });
+        break;
+      }
+    }
+    return [...result.values()];
+  });
+  return extracted
+    .filter((raw) => !/\bkit\b/i.test(raw.name))
+    // The card text loses the slash in "1/3 UVA".
+    .map((raw) => ({ ...raw, name: raw.name.replace(/\b13 UVA\b/i, '1/3 UVA') }))
+    .map((raw) => toProduct(raw, 'sunscreen', source))
+    .filter((product) => product?.url);
 }
 
 async function scrapeEssentialSearch(page, source, category) {
@@ -876,8 +839,8 @@ try {
 
   if (!sourceOnly || sources.find((source) => source.brand.toLowerCase() === sourceOnly.toLowerCase())?.category === 'sunscreen') {
     const sunscreenSource = sources.find((source) => source.category === 'sunscreen');
-    catalog.sunscreen = await scrapeDutraSunscreens(page, sunscreenSource);
-    console.log(`Found ${catalog.sunscreen.length} Nutriex sunscreen listings from Dutra.`);
+    catalog.sunscreen = await scrapeLojaDoMecanicoSunscreens(page, sunscreenSource);
+    console.log(`Found ${catalog.sunscreen.length} Nutriex sunscreen listings from Loja do Mecânico.`);
     for (const vtexSource of vtexSunscreenSources) {
       const source = { ...vtexSource, brand: vtexSource.store, vtex: true };
       const found = (await fetchVtexSunscreens(source)).map((raw) => toProduct(raw, 'sunscreen', source)).filter((product) => product?.url);
