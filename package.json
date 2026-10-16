@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "playwright": "^1.58.0",
+    "sharp": "^0.35.5",
     "tesseract.js": "^7.0.0"
   }
 }

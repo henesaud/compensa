@@ -25,3 +25,5 @@ Static price comparison site (whey protein and sunscreen), in Portuguese.
 
 - Bump `?v=N` on `styles.css` and `script.js` in `index.html` after changing them, so browsers stop using the cached copy.
 - Google Analytics `G-VXZPZ6TDW4` loads directly (no cookie banner, by choice).
+- Keep every field in `data/products.json` (nutrition tables, OCR metadata, etc.) even if the site does not show it yet; it will be used later.
+- Product images are stored as 176 px WebP thumbnails (`scripts/product-image.mjs`); the site only shows them at 88 px or less.

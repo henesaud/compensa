@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { chromium } from 'playwright';
 import { createWorker } from 'tesseract.js';
 import { fetchVtexSunscreens, vtexSunscreenSources } from './vtex-sunscreens.mjs';
+import { productThumbnail } from './product-image.mjs';
 import { fatDetails } from './nutrition-table.mjs';
 import { agreeingReading, hasSaturatedFat, mergeMissingRows, ocrNutritionTable, sameReading, parseOcrNutritionTable, summarizeOcrNutrition, validateOcrNutrition } from './nutrition-ocr.mjs';
 
@@ -776,8 +777,8 @@ async function saveProductImages(catalog, context) {
         const slug = product.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
           .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
         const hash = createHash('sha256').update(product.imageUrl).digest('hex').slice(0, 10);
-        const filename = `${slug}-${hash}.${extension}`;
-        await writeFile(path.join(imageDirectory, filename), body);
+        const filename = `${slug}-${hash}.webp`;
+        await writeFile(path.join(imageDirectory, filename), await productThumbnail(body));
         product.image = `assets/products/${filename}`;
         delete product.imageUrl;
         saved += 1;
