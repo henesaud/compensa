@@ -3,9 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "update:products": "node scripts/update-products.mjs"
+    "update:products": "node scripts/update-products.mjs",
+    "build": "node scripts/build-site.mjs",
+    "test": "node --test scripts/"
   },
   "devDependencies": {
-    "playwright": "^1.58.0"
+    "playwright": "^1.58.0",
+    "tesseract.js": "^7.0.0"
   }
 }

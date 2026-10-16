@@ -6,6 +6,14 @@
     <meta name="theme-color" content="#f7f6f2">
     <meta name="description" content="Compare preços por peso ou volume e encontre o melhor custo-benefício.">
     <title>Compensa? — compare preços</title>
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="pt_BR">
+    <meta property="og:site_name" content="Compensa?">
+    <meta property="og:title" content="Compensa? — compare preços">
+    <meta property="og:description" content="Compare whey protein e protetor solar pelo preço por quantidade e encontre o melhor custo-benefício.">
+    <meta property="og:image" content="/og-image.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-VXZPZ6TDW4"></script>
     <script>
@@ -14,8 +22,8 @@
       gtag('js', new Date());
       gtag('config', 'G-VXZPZ6TDW4');
     </script>
-    <link rel="stylesheet" href="styles.css">
-    <script src="script.js" defer></script>
+    <link rel="stylesheet" href="styles.css?v=16">
+    <script src="script.js?v=15" defer></script>
   </head>
   <body>
     <header class="site-header">
@@ -35,6 +43,7 @@
 
         <div class="category-tabs" role="group" aria-label="Escolha uma categoria">
           <button class="category-button is-active" type="button" data-category="whey" aria-pressed="true">Whey protein</button>
+          <button class="category-button" type="button" data-category="sunscreen" aria-pressed="false">Protetor solar</button>
         </div>
 
         <div class="filter-panel">
@@ -44,16 +53,34 @@
           <span>Produtos</span>
           <div class="results-actions">
             <span class="result-count" id="result-count" aria-live="polite"></span>
-            <button class="insights-toggle" id="insights-toggle" type="button" aria-expanded="false" aria-controls="insights-panel">
-              <span aria-hidden="true">✦</span> Insights importantes
-            </button>
+            <button class="guide-button" id="guide-button" type="button" hidden>Como escolher</button>
           </div>
         </div>
 
-        <section class="insights-panel" id="insights-panel" aria-label="Insights sobre os produtos" hidden></section>
         <div class="product-grid" id="product-grid" aria-live="polite"></div>
       </section>
     </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div>
+          <a class="wordmark" href="#inicio"><span class="wordmark-icon" aria-hidden="true">◆</span> compensa<span>?</span></a>
+          <p>Preços e informações copiados das lojas <span id="footer-updated"></span>. Eles podem mudar a qualquer momento: confira na loja antes de comprar.</p>
+        </div>
+        <div>
+          <h2>Dados</h2>
+          <p>Preços, fotos e tabelas nutricionais vêm das páginas públicas das lojas. Algumas tabelas foram lidas automaticamente das fotos do rótulo e podem ter erros.</p>
+        </div>
+        <div>
+          <h2>Sobre</h2>
+          <ul>
+            <li><a href="privacidade.html">Privacidade e cookies</a></li>
+            <li><a href="https://github.com/henesaud" rel="noopener">Contato</a></li>
+          </ul>
+        </div>
+      </div>
+      <p class="footer-legal">Compensa? não tem vínculo com as marcas ou lojas listadas. As marcas pertencem aos seus donos.</p>
+    </footer>
 
     <dialog class="nutrition-dialog" id="nutrition-dialog" aria-labelledby="nutrition-dialog-title">
       <div class="nutrition-dialog-heading">
@@ -65,6 +92,38 @@
         <button class="nutrition-dialog-close" id="nutrition-dialog-close" type="button" aria-label="Fechar">×</button>
       </div>
       <div id="nutrition-dialog-content"></div>
+    </dialog>
+    <dialog class="nutrition-dialog guide-dialog" id="guide-dialog" aria-labelledby="guide-dialog-title">
+      <div class="nutrition-dialog-heading">
+        <div>
+          <p class="eyebrow">PROTETOR SOLAR</p>
+          <h2 id="guide-dialog-title">Como escolher</h2>
+        </div>
+        <button class="nutrition-dialog-close" id="guide-dialog-close" type="button" aria-label="Fechar">×</button>
+      </div>
+      <section class="guide-section">
+        <h3>Quanto UVB chega à pele</h3>
+        <p>O FPS mede a proteção contra raios UVB, que causam queimaduras e são a principal causa de câncer de pele.</p>
+        <div class="uvb-chart" role="img" aria-label="Porcentagem de UVB que chega à pele por FPS: FPS 15, 6,7%; FPS 30, 3,3%; FPS 50, 2%; FPS 70, 1,4%; FPS 100, 1%.">
+            <div class="uvb-row"><span class="uvb-label">FPS 15</span><div class="uvb-track"><span class="uvb-fill" style="width:100.0%"></span></div><span class="uvb-value"><strong>6,7%</strong> chega · 93,3% bloqueado</span></div>
+            <div class="uvb-row"><span class="uvb-label">FPS 30</span><div class="uvb-track"><span class="uvb-fill" style="width:50.0%"></span></div><span class="uvb-value"><strong>3,3%</strong> chega · 96,7% bloqueado</span></div>
+            <div class="uvb-row"><span class="uvb-label">FPS 50</span><div class="uvb-track"><span class="uvb-fill" style="width:30.0%"></span></div><span class="uvb-value"><strong>2%</strong> chega · 98% bloqueado</span></div>
+            <div class="uvb-row"><span class="uvb-label">FPS 70</span><div class="uvb-track"><span class="uvb-fill" style="width:21.4%"></span></div><span class="uvb-value"><strong>1,4%</strong> chega · 98,6% bloqueado</span></div>
+            <div class="uvb-row"><span class="uvb-label">FPS 100</span><div class="uvb-track"><span class="uvb-fill" style="width:15.0%"></span></div><span class="uvb-value"><strong>1%</strong> chega · 99% bloqueado</span></div>
+        </div>
+        <p class="guide-note">Indo de FPS 15 para 30, o UVB que chega à pele cai pela metade. Acima de 50 o ganho é pequeno. Isso vale com a quantidade usada no teste do FPS (2 mg/cm²). Quem passa menos fica com bem menos proteção.</p>
+      </section>
+      <section class="guide-section">
+        <h3>O que observar</h3>
+        <ul class="guide-list">
+          <li><strong>FPS 30 ou mais.</strong> É o mínimo recomendado pela Sociedade Brasileira de Dermatologia para o dia a dia.</li>
+          <li><strong>Proteção UVA.</strong> O UVA envelhece a pele e causa manchas. Procure o selo UVA ou o valor de PPD. Quanto maior o PPD, melhor.</li>
+          <li><strong>Quantidade.</strong> Para rosto e pescoço, use cerca de uma colher de chá (ou a "regra dos dois dedos").</li>
+          <li><strong>Reaplicação.</strong> Reaplique a cada 4 horas e depois de entrar na água ou suar. Para praia e esporte, prefira "resistente à água".</li>
+          <li><strong>Textura.</strong> Pele oleosa: gel ou fluido oil-free. Pele seca: loção ou creme. Com cor: protege também da luz visível e ajuda em manchas e melasma.</li>
+          <li><strong>Preço por quantidade.</strong> Compare o valor por 100 ml/g. Embalagens maiores costumam sair mais baratas.</li>
+        </ul>
+      </section>
     </dialog>
   </body>
 </html>

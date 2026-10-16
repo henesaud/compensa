@@ -1,12 +1,45 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { chromium } from 'playwright';
+import { createWorker } from 'tesseract.js';
+import { fetchVtexSunscreens, vtexSunscreenSources } from './vtex-sunscreens.mjs';
+import { fatDetails } from './nutrition-table.mjs';
+import { agreeingReading, hasSaturatedFat, mergeMissingRows, ocrNutritionTable, sameReading, parseOcrNutritionTable, summarizeOcrNutrition, validateOcrNutrition } from './nutrition-ocr.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outputPath = path.join(root, 'data', 'products.json');
-const searches = [{ category: 'whey', query: 'whey' }];
+const sources = [
+  {
+    brand: 'Growth Supplements',
+    origin: 'https://www.gsuplementos.com.br',
+    searchUrl: 'https://www.gsuplementos.com.br/busca?busca=whey',
+  },
+  {
+    brand: 'Max Titanium',
+    origin: 'https://www.maxtitanium.com.br',
+    searchUrl: 'https://www.maxtitanium.com.br/Produtos/Proteinas',
+  },
+  {
+    brand: 'Essential Nutrition',
+    origin: 'https://www.essentialnutrition.com.br',
+    searchUrls: [
+      'https://www.essentialnutrition.com.br/produtos/proteinas/whey?product_list_dir=desc&product_list_order=name',
+      'https://www.essentialnutrition.com.br/produtos/proteinas/whey?p=2&product_list_dir=desc&product_list_order=name',
+      'https://www.essentialnutrition.com.br/produtos/proteinas/whey?p=3&product_list_dir=desc&product_list_order=name',
+    ],
+  },
+  {
+    brand: 'Dutra',
+    productBrand: 'Nutriex',
+    origin: 'https://www.dutra.com.br',
+    searchUrl: 'https://www.dutra.com.br/c/cuidados-pessoais-protetores-solares',
+    category: 'sunscreen',
+  },
+];
+const sourceOnlyIndex = process.argv.indexOf('--source');
+const sourceOnly = sourceOnlyIndex >= 0 ? process.argv[sourceOnlyIndex + 1] : null;
 
 function parsePrice(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -17,11 +50,17 @@ function parsePrice(value) {
 }
 
 function parseAmount(name, category) {
-  const pattern = category === 'whey' ? /(\d+(?:[.,]\d+)?)\s*(kg|g)\b/i : /(\d+(?:[.,]\d+)?)\s*(ml|l)\b/i;
-  const match = String(name).match(pattern);
-  if (!match) return null;
-  const amount = Number(match[1].replace(',', '.'));
-  const unit = match[2].toLowerCase();
+  const pattern = category === 'whey' ? /(\d+(?:[.,]\d+)?)\s*(kg|g)\b/i : /(\d+(?:[.,]\d+)?)\s*(ml|g|l(?:itros?)?)\b/i;
+  const text = String(name);
+  const totalMatch = category === 'whey' ? text.match(/(\d+(?:[.,]\d+)?)\s*(kg|g)\s*(?:total|no total)/i) : null;
+  const match = totalMatch || text.match(pattern);
+  if (!match) {
+    const doseCount = category === 'whey' ? text.match(/\b(\d+)\s*(?:doses?|sach[eê]s?)\b/i) : null;
+    return doseCount ? { amount: Number(doseCount[1]) * 25, unit: 'g', estimatedFromDoses: true } : null;
+  }
+  const packageCount = !totalMatch && category === 'whey' ? Number(text.match(/\b(\d+)\s*(?:x|unidades?)\b/i)?.[1] || 1) : 1;
+  const amount = Number(match[1].replace(',', '.')) * packageCount;
+  const unit = match[2].toLowerCase().startsWith('l') ? 'l' : match[2].toLowerCase();
   if (!Number.isFinite(amount) || amount <= 0) return null;
   return { amount, unit };
 }
@@ -41,16 +80,25 @@ function productType(name, category) {
   return 'Uso geral';
 }
 
-function toProduct(raw, category) {
+function parseSpf(name) {
+  const text = String(name);
+  const match = text.match(/\bfps\s*(\d{2,3})\b/i) || text.match(/\b(\d{2,3})\s*fps\b/i);
+  const value = match ? Number(match[1]) : null;
+  return Number.isFinite(value) && value >= 15 && value <= 100 ? value : null;
+}
+
+function toProduct(raw, category, source) {
   const name = String(raw.name || '').replace(/\s+/g, ' ').trim();
   const normalizedName = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   if (category === 'whey' && !normalizedName.includes('whey')) return null;
+  if (category === 'sunscreen' && (!(source.vtex || /nutriex/i.test(raw.brand || source.productBrand || source.brand)) || !parseSpf(name))) return null;
   const amount = parseAmount(name, category) || parseAmount(raw.text || '', category);
   const price = parsePrice(raw.price);
   if (!name || !amount || !price) return null;
 
-  const brand = String(raw.brand || 'Growth Supplements').trim();
-  const url = isDirectProductUrl(raw.url) ? raw.url : undefined;
+  const brand = String(raw.brand || source.productBrand || source.brand).trim();
+  const url = isDirectProductUrl(raw.url, source) ? raw.url : undefined;
+  if (category === 'whey' && url && !new URL(url).pathname.toLowerCase().includes('whey')) return null;
   const product = {
     brand,
     name,
@@ -61,24 +109,180 @@ function toProduct(raw, category) {
     url,
     imageUrl: raw.imageUrl,
   };
+  if (category === 'sunscreen') {
+    product.spf = parseSpf(name);
+    product.store = source.store || source.brand;
+    if (!source.vtex) product.paymentCondition = 'Pix ou boleto';
+  }
+  if (amount.estimatedFromDoses) product.estimatedAmount = true;
 
   return product;
 }
 
-function isDirectProductUrl(value) {
+function isDirectProductUrl(value, source) {
   try {
     const url = new URL(value);
-    return url.hostname === 'www.gsuplementos.com.br' && /-p\d+$/i.test(url.pathname);
+    if (url.origin !== source.origin) return false;
+    if (source.brand === 'Growth Supplements') return /-p\d+$/i.test(url.pathname);
+    if (source.brand === 'Max Titanium') return /\/p$/i.test(url.pathname);
+    if (source.brand === 'Essential Nutrition') return /^\/[^/]*whey[^/]*\/?$/i.test(url.pathname);
+    if (source.vtex) return /\/p$/i.test(url.pathname);
+    if (source.brand === 'Dutra') return url.hostname === 'www.dutra.com.br' && /^\/p\/protetor-solar[^/]*\/?$/i.test(url.pathname);
+    return false;
   } catch {
     return false;
   }
 }
 
-async function scrapeSearch(page, query, category) {
-  const url = new URL('https://www.gsuplementos.com.br/busca');
-  url.searchParams.set('busca', query);
-  console.log(`Searching ${query}: ${url}`);
-  await page.goto(url.toString(), { waitUntil: 'domcontentloaded', timeout: 60000 });
+async function scrapeDutraSunscreens(page, source) {
+  console.log(`Searching ${source.brand}: ${source.searchUrl}`);
+  await page.goto(source.searchUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.waitForTimeout(1800);
+  const extracted = await page.locator('a[href]').evaluateAll((anchors, origin) => {
+    const absoluteImageUrl = (value) => {
+      try {
+        const url = new URL(value, location.href);
+        return url.protocol === 'https:' ? url.href : '';
+      } catch { return ''; }
+    };
+    const seen = new Set();
+    const result = [];
+    const productPath = /^\/p\/protetor-solar[^/]*\/?$/i;
+    for (const anchor of anchors) {
+      let productUrl;
+      try {
+        const url = new URL(anchor.href);
+        if (url.origin !== origin || !productPath.test(url.pathname)) continue;
+        productUrl = url.href;
+      } catch { continue; }
+      if (seen.has(productUrl)) continue;
+      seen.add(productUrl);
+
+      let card = null;
+      for (let element = anchor, depth = 0; element && depth < 9; element = element.parentElement, depth += 1) {
+        const text = (element.innerText || '').replace(/\s+/g, ' ').trim();
+        const productUrls = new Set([...element.querySelectorAll('a[href]')].flatMap((link) => {
+          try {
+            const url = new URL(link.href);
+            return url.origin === origin && productPath.test(url.pathname) ? [url.pathname] : [];
+          } catch { return []; }
+        }));
+        if (text.length < 1800 && /R\$\s*[\d.]+,\d{2}/i.test(text) && /\d+(?:[.,]\d+)?\s*(?:ml|l(?:itros?)?)\b/i.test(text)
+          && /Nutriex/i.test(text) && productUrls.size === 1) {
+          card = element;
+          break;
+        }
+      }
+      if (!card) continue;
+      const text = (card.innerText || '').replace(/\s+/g, ' ').trim();
+      const candidates = [anchor.innerText, anchor.getAttribute('title'), anchor.querySelector('img')?.alt,
+        ...[...card.querySelectorAll('h2,h3,[data-testid*="title"],[class*="title"]')].map((node) => node.innerText)]
+        .map((value) => (value || '').replace(/\s+/g, ' ').trim())
+        .filter((value) => /fps\s*\d{2,3}/i.test(value) && /\d+(?:[.,]\d+)?\s*(?:ml|l(?:itros?)?)\b/i.test(value));
+      const name = candidates.sort((a, b) => a.length - b.length)[0];
+      if (!name) continue;
+      const prices = [...text.matchAll(/R\$\s*([\d.]+,\d{2})/gi)];
+      const priceMatch = prices.filter((match) => {
+        const before = text.slice(Math.max(0, match.index - 20), match.index);
+        return !/\d+\s*x\s*(?:de\s*)?$/i.test(before);
+      }).sort((a, b) => Number(a[1].replace(/\./g, '').replace(',', '.')) - Number(b[1].replace(/\./g, '').replace(',', '.')))[0];
+      if (!priceMatch) continue;
+      const image = card.querySelector('img');
+      const cleanName = name.replace(/(?:…|\.\.\.)\s*$/, '').replace(/\s*-\s*$/, '').trim();
+      result.push({
+        name: /^nutriex/i.test(cleanName) ? cleanName : `Nutriex ${cleanName}`, price: priceMatch[1], url: productUrl,
+        imageUrl: absoluteImageUrl(image?.currentSrc || image?.getAttribute('data-src') || image?.src || ''),
+        brand: 'Nutriex',
+      });
+    }
+    return result;
+  }, source.origin);
+
+  const products = new Map();
+  for (const raw of extracted) {
+    const product = toProduct(raw, 'sunscreen', source);
+    if (!product?.url) continue;
+    const identity = `${product.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()}:${product.amount}${product.unit}`;
+    const existing = products.get(identity);
+    if (!existing || product.price < existing.price) products.set(identity, product);
+  }
+  return [...products.values()];
+}
+
+async function scrapeEssentialSearch(page, source, category) {
+  const extracted = await page.locator('a[href]').evaluateAll((anchors, origin) => {
+    const seen = new Set();
+    const directProductLink = (value) => {
+      try {
+        const url = new URL(value, location.href);
+        return url.origin === origin && /^\/[^/]*whey[^/]*\/?$/i.test(url.pathname);
+      } catch { return false; }
+    };
+    const absoluteImageUrl = (value) => {
+      try {
+        const url = new URL(value, location.href);
+        return url.protocol === 'https:' ? url.href : '';
+      } catch { return ''; }
+    };
+    const output = [];
+
+    for (const anchor of anchors) {
+      if (!directProductLink(anchor.href)) continue;
+      const productUrl = new URL(anchor.href).href;
+      if (seen.has(productUrl)) continue;
+      seen.add(productUrl);
+
+      let card = null;
+      for (let element = anchor, depth = 0; element && depth < 8; element = element.parentElement, depth += 1) {
+        const text = (element.innerText || '').replace(/\s+/g, ' ').trim();
+        if (text.length <= 1800 && /R\$\s*[\d.]+,\d{2}/i.test(text)
+          && /\d+\s*(?:doses?|sach[eê]s?|kg|g)\b/i.test(text)) {
+          card = element;
+          break;
+        }
+      }
+      if (!card) continue;
+
+      const cardAnchors = [...card.getElementsByTagName('a')];
+      const name = cardAnchors
+        .filter((candidate) => directProductLink(candidate.href))
+        .map((candidate) => candidate.innerText.replace(/\s+/g, ' ').trim())
+        .find((value) => /whey/i.test(value) && value.length > 3);
+      if (!name) continue;
+
+      const text = (card.innerText || '').replace(/\s+/g, ' ').trim();
+      const priceMatches = [...text.matchAll(/R\$\s*([\d.]+,\d{2})/gi)];
+      const prices = priceMatches.map((match) => match[1]);
+      const price = prices.sort((a, b) => Number(a.replace(/\./g, '').replace(',', '.'))
+        - Number(b.replace(/\./g, '').replace(',', '.')))[0];
+      const images = [...card.getElementsByTagName('img')];
+      const imageUrl = absoluteImageUrl(images.find((image) => /whey/i.test(`${image.alt} ${image.currentSrc} ${image.src}`))?.currentSrc
+        || images.find((image) => /whey/i.test(`${image.alt} ${image.currentSrc} ${image.src}`))?.src
+        || images[0]?.currentSrc
+        || images[0]?.src
+        || '');
+      if (price) output.push({ name, text, price, url: productUrl, imageUrl, brand: 'Essential Nutrition' });
+    }
+
+    return output;
+  }, source.origin);
+
+  const products = new Map();
+  for (const raw of extracted) {
+    const product = toProduct(raw, category, source);
+    if (!product?.url) continue;
+    const normalizedName = product.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const identity = `${product.brand}:${normalizedName}:${product.amount}${product.unit}`;
+    const existing = products.get(identity);
+    if (!existing) products.set(identity, product);
+    else if (product.price < existing.price) existing.price = product.price;
+  }
+  return [...products.values()];
+}
+
+async function scrapeSearch(page, source, category) {
+  console.log(`Searching ${source.brand}: ${source.searchUrl}`);
+  await page.goto(source.searchUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForTimeout(3000);
 
   const verificationPage = await page.evaluate(() => /verifying your browser|enable javascript/i.test(`${document.title} ${document.body?.innerText || ''}`));
@@ -92,7 +296,9 @@ async function scrapeSearch(page, query, category) {
   }
   await page.waitForTimeout(2500);
 
-  const extracted = await page.evaluate(() => {
+  if (source.brand === 'Essential Nutrition') return scrapeEssentialSearch(page, source, category);
+
+  const extracted = await page.evaluate((brand) => {
     const output = [];
     const seen = new Set();
     const absoluteUrl = (value) => {
@@ -109,8 +315,18 @@ async function scrapeSearch(page, query, category) {
         return parsed.protocol === 'https:' ? parsed.href : '';
       } catch { return ''; }
     };
+    const isProductLink = (value) => {
+      try {
+        const url = new URL(value, location.href);
+        if (url.origin !== location.origin) return false;
+        if (/(?:-p\d+|\/produto\/|\/product\/|\/p(?:$|\?)|\/products\/[^/?#]+)/i.test(url.href)) return true;
+        return brand === 'Essential Nutrition' && /^\/[^/]*whey[^/]*\/?$/i.test(url.pathname);
+      } catch { return false; }
+    };
     const tokens = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().match(/[a-z0-9]+/g) || [];
-    const productNameTokens = (value) => new Set(tokens(value).filter((token) => token.length > 2 || ['2w', '3w'].includes(token))
+    const productNameTokens = (value) => new Set(tokens(value)
+      .flatMap((token) => token === 'isowhey' ? ['iso'] : token === 'isolado' ? ['iso', token] : [token])
+      .filter((token) => token.length > 2 || ['2w', '3w'].includes(token))
       .filter((token) => !['growth', 'supplements', 'whey', 'protein'].includes(token)));
     const linkScore = (name, link) => {
       const nameTokens = productNameTokens(name);
@@ -121,7 +337,7 @@ async function scrapeSearch(page, query, category) {
     };
     const productAnchors = [...document.querySelectorAll('a[href]')]
       .map((anchor) => ({ url: absoluteUrl(anchor.href), tokens: new Set(tokens(new URL(anchor.href).pathname)) }))
-      .filter((link) => link.url && /(?:-p\d+|\/produto\/|\/product\/)/i.test(link.url));
+      .filter((link) => link.url && isProductLink(link.url));
     const findProductUrl = (name) => {
       const ranked = productAnchors
         .map((link) => ({ ...link, score: linkScore(name, link) }))
@@ -147,7 +363,7 @@ async function scrapeSearch(page, query, category) {
       const types = Array.isArray(node['@type']) ? node['@type'] : [node['@type']];
       if (types.includes('Product') && node.name) {
         const directUrl = absoluteUrl(node.url || node['@id'] || '');
-        const productUrl = /(?:-p\d+|\/produto\/|\/product\/)/i.test(directUrl) ? directUrl : findProductUrl(node.name);
+        const productUrl = isProductLink(directUrl) ? directUrl : findProductUrl(node.name);
         const price = getOfferPrice(node.offers);
         const brand = typeof node.brand === 'string' ? node.brand : node.brand?.name;
         const imageUrl = getImageUrl(node.image);
@@ -162,7 +378,7 @@ async function scrapeSearch(page, query, category) {
       try { walk(JSON.parse(script.textContent)); } catch { /* Ignore malformed structured data. */ }
     });
 
-    const productLinks = [...document.querySelectorAll('a[href]')].filter((anchor) => /(?:-p\d+|\/produto\/|\/product\/)/i.test(anchor.href));
+    const productLinks = [...document.querySelectorAll('a[href]')].filter((anchor) => isProductLink(anchor.href));
     for (const anchor of productLinks) {
       const productUrl = absoluteUrl(anchor.href);
       if (!productUrl || seen.has(productUrl)) continue;
@@ -189,10 +405,13 @@ async function scrapeSearch(page, query, category) {
         || bestCard.querySelector('img')?.getAttribute('data-lazy-src')
         || bestCard.querySelector('img')?.src
         || '');
-      const name = headings[0] || anchor.innerText.trim() || imageAlt;
+      const name = headings.find((value) => tokens(value).includes('whey') && /\d+(?:[.,]\d+)?\s*(?:kg|g)\b/i.test(value))
+        || headings.find((value) => tokens(value).includes('whey'))
+        || anchor.innerText.trim()
+        || imageAlt;
       const productLinks = [...bestCard.querySelectorAll('a[href]')]
         .map((link) => ({ url: absoluteUrl(link.href), tokens: new Set(tokens(new URL(link.href).pathname)) }))
-        .filter((link) => link.url && /(?:-p\d+|\/produto\/|\/product\/)/i.test(link.url));
+        .filter((link) => link.url && isProductLink(link.url));
       const bestLink = productLinks
         .map((link) => ({ ...link, score: linkScore(name, link) }))
         .sort((a, b) => b.score - a.score)[0];
@@ -202,26 +421,32 @@ async function scrapeSearch(page, query, category) {
         const before = text.slice(Math.max(0, match.index - 16), match.index);
         return !/\d+\s*x\s*(?:de\s*)?$/i.test(before);
       });
-      const price = nonInstallmentPrices[0]?.[1] || priceMatches[0]?.[1];
-      if (name && price) output.push({ name, text, price, url: bestLink.url, imageUrl, brand: 'Growth Supplements' });
+      const pixIndex = text.search(/(?:à\s*vista\s*)?no\s*pix/i);
+      const pixPrice = pixIndex >= 0
+        ? [...priceMatches].reverse().find((match) => match.index < pixIndex)?.[1]
+        : null;
+      const lowestListedPrice = [...nonInstallmentPrices].sort((a, b) => parseFloat(a[1].replace(/\./g, '').replace(',', '.')) - parseFloat(b[1].replace(/\./g, '').replace(',', '.')))[0]?.[1];
+      const price = pixPrice || lowestListedPrice || priceMatches[0]?.[1];
+      if (name && price) output.push({ name, text, price, url: bestLink.url, imageUrl, brand });
     }
     return output;
-  });
+  }, source.brand);
 
   const products = new Map();
   let withoutDirectLink = 0;
   for (const raw of extracted) {
-    const product = toProduct(raw, category);
+    const product = toProduct(raw, category, source);
     if (!product) continue;
     if (!product.url) {
       withoutDirectLink += 1;
       continue;
     }
     const normalizedName = product.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-    const identity = `${normalizedName}:${product.amount}${product.unit}`;
+    const identity = `${product.brand}:${normalizedName}:${product.amount}${product.unit}`;
     const existing = products.get(identity);
     if (!existing) products.set(identity, product);
     else {
+      if (product.price < existing.price) existing.price = product.price;
       if (!existing.url && product.url) existing.url = product.url;
       if (!existing.imageUrl && product.imageUrl) existing.imageUrl = product.imageUrl;
     }
@@ -253,8 +478,12 @@ function nutritionSourceUrl(product, products) {
 async function scrapeNutrition(page, productUrl) {
   try {
     await page.goto(productUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.waitForTimeout(1200);
-    return await page.evaluate(() => {
+    // Some stores render the nutrition table client-side after the page loads.
+    // Stores that only publish it as an image never match, so the wait is capped.
+    await page.waitForFunction(() => /informa[cç][aã]o nutricional/i.test(document.body?.innerText || ''), undefined, { timeout: 8000 })
+      .catch(() => {});
+    await page.waitForTimeout(500);
+    const result = await page.evaluate(() => {
       const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
       const isNutritionTable = (table) => {
         const text = normalize(table.innerText || '');
@@ -301,33 +530,180 @@ async function scrapeNutrition(page, productUrl) {
           text: nutritionText,
         }
         : null;
-      const rows = [
-        ...uniqueRows.map((row) => row.text),
-        ...(document.body?.innerText || '').split('\n'),
-      ].map((row) => row.replace(/\s+/g, ' ').trim()).filter(Boolean);
-
       const findGrams = (pattern) => {
-        for (const row of rows) {
-          const normalizedRow = normalize(row);
-          if (!pattern.test(normalizedRow)) continue;
-          const labelIndex = normalizedRow.search(pattern);
-          const rest = row.slice(labelIndex + normalizedRow.slice(labelIndex).match(pattern)[0].length);
-          const value = rest.match(/(?:^|[^\d])(\d+(?:[.,]\d+)?)/);
-          if (value) return Number(value[1].replace(',', '.'));
+        const row = nutritionTable?.rows.find((candidate) => pattern.test(normalize(candidate.label || candidate.text || '')));
+        if (!row) return null;
+        const cellValue = row.cells?.slice(1).find((cell) => /\d/.test(cell));
+        if (cellValue) {
+          const value = cellValue.match(/\d+(?:[.,]\d+)?/);
+          if (value) return Number(value[0].replace(',', '.'));
         }
-        return null;
+        const normalizedRow = normalize(row.label || row.text || '');
+        const labelMatch = normalizedRow.match(pattern);
+        if (!labelMatch) return null;
+        const labelIndex = normalizedRow.search(pattern);
+        const remainder = String(row.text || row.label || '').slice(labelIndex + labelMatch[0].length);
+        const value = remainder.match(/\d+(?:[.,]\d+)?/);
+        return value ? Number(value[0].replace(',', '.')) : null;
       };
 
+      const imageCandidates = new Map();
+      let productImageUrl = null;
+      const addImage = (value, baseScore, alt = '') => {
+        if (!value) return;
+        try {
+          const url = new URL(value, location.href);
+          if (url.protocol !== 'https:' || /logo|sprite|icon|banner|payment|badge|selo/i.test(`${url.pathname} ${url.search}`)) return;
+          // VTEX stores serve resized copies at /arquivos/ids/<id>-<width>-<height>/;
+          // galleries load 96px and 256px thumbnails, which are unreadable for OCR.
+          url.pathname = url.pathname.replace(/^(\/arquivos\/ids\/\d+)(?:-\d+-\d+)?\//, '$1-1600-0/');
+          const name = normalize(`${decodeURIComponent(url.pathname.split('/').pop())} ${alt}`);
+          let score = baseScore;
+          if (/tabela|nutri|supplement.?facts|(^|[-_ ])tn[-_ ]/.test(name)) score += 30;
+          else if (/tras|verso|back|costas/.test(name)) score += 12;
+          const previous = imageCandidates.get(url.href);
+          imageCandidates.set(url.href, Math.max(score, previous || 0));
+        } catch { /* Ignore malformed image URLs. */ }
+      };
+      for (const image of document.images) {
+        const sources = [image.getAttribute('data-src'), image.getAttribute('data-lazy-src'), image.getAttribute('src'), image.currentSrc,
+          ...(image.getAttribute('srcset') || '').split(',').map((entry) => entry.trim().split(/\s+/)[0])]
+          .filter((source, index, all) => source && all.indexOf(source) === index);
+        const inGallery = image.closest('main,[role="main"],[id*="product"],[class*="gallery"],[class*="Galeria"],[class*="product-image"],[class*="product__image"],[class*="swiper"],[class*="slick"]');
+        for (const source of sources) addImage(source, inGallery ? 4 : 0, image.alt);
+      }
+      for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
+        try {
+          const walkProducts = (node) => {
+            if (!node || typeof node !== 'object') return;
+            if (Array.isArray(node)) return node.forEach(walkProducts);
+            const types = Array.isArray(node['@type']) ? node['@type'] : [node['@type']];
+            if (types.includes('Product')) {
+              const images = Array.isArray(node.image) ? node.image : [node.image];
+              const urls = images.map((image) => (typeof image === 'string' ? image : image?.url || image?.contentUrl)).filter(Boolean);
+              productImageUrl ||= urls.find((url) => url.startsWith('https:')) || null;
+              urls.forEach((url) => addImage(url, 6));
+            }
+            Object.values(node).forEach(walkProducts);
+          };
+          walkProducts(JSON.parse(script.textContent));
+        } catch { /* Ignore invalid structured data. */ }
+      }
       return {
         carbohydrateGrams: findGrams(/^carboidratos?\b/),
         proteinGrams: findGrams(/^proteinas?\b/),
         nutritionTable,
+        productImageUrl,
+        nutritionImageUrls: [...imageCandidates.entries()].filter(([, score]) => score >= 4)
+          .sort((a, b) => b[1] - a[1]).slice(0, 6).map(([url]) => url),
       };
     });
+    return result;
   } catch (error) {
     console.warn(`Could not read nutrition facts from ${productUrl}: ${error.message}`);
-    return { carbohydrateGrams: null, proteinGrams: null, nutritionTable: null };
+    return { carbohydrateGrams: null, proteinGrams: null, nutritionTable: null, productImageUrl: null, nutritionImageUrls: [] };
   }
+}
+
+let nutritionOcrWorker;
+let nutritionOcrUnavailable = false;
+
+async function prepareImageForOcr(page, body, contentType, { largestSide, threshold = false }) {
+  const dataUrl = `data:${contentType};base64,${body.toString('base64')}`;
+  const pngDataUrl = await page.evaluate(async ({ source, target, threshold }) => {
+    const image = new Image();
+    image.src = source;
+    await image.decode();
+    const largestSide = Math.max(image.naturalWidth, image.naturalHeight);
+    const scale = Math.min(5, target / Math.max(1, largestSide));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.filter = threshold ? 'grayscale(1)' : 'grayscale(1) contrast(1.35)';
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    if (threshold) {
+      // Pure black and white keeps thin digits on small, blurry tables from
+      // merging with cell borders.
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+      for (let index = 0; index < pixels.data.length; index += 4) {
+        const value = pixels.data[index] < 150 ? 0 : 255;
+        pixels.data[index] = value;
+        pixels.data[index + 1] = value;
+        pixels.data[index + 2] = value;
+      }
+      context.putImageData(pixels, 0, 0);
+    }
+    return canvas.toDataURL('image/png');
+  }, { source: dataUrl, target: largestSide, threshold });
+  return Buffer.from(pngDataUrl.slice(pngDataUrl.indexOf(',') + 1), 'base64');
+}
+
+// Each image is read at a few scales and segmentation modes until a reading
+// passes validation; a single OCR pass regularly drops digits ("11" -> "1").
+const ocrAttempts = [
+  { largestSide: 2000, pageSegMode: '4' },
+  { largestSide: 2800, pageSegMode: '4' },
+  { largestSide: 1400, pageSegMode: '4' },
+  { largestSide: 2000, pageSegMode: '6' },
+  { largestSide: 2800, pageSegMode: '4', threshold: true },
+];
+
+async function readNutritionFromImages(context, page, imageUrls, productUrl) {
+  if (nutritionOcrUnavailable || !imageUrls?.length) return null;
+  try {
+    nutritionOcrWorker ||= await createWorker('por');
+  } catch (error) {
+    nutritionOcrUnavailable = true;
+    console.warn(`Image OCR is unavailable: ${error.message}`);
+    return null;
+  }
+
+  const unverified = [];
+  for (const imageUrl of imageUrls) {
+    try {
+      const response = await context.request.get(imageUrl, {
+        headers: productUrl ? { referer: `${new URL(productUrl).origin}/` } : {},
+        timeout: 30000,
+      });
+      if (!response.ok()) continue;
+      const contentType = (response.headers()['content-type'] || '').split(';')[0];
+      if (!contentType.toLowerCase().startsWith('image/')) continue;
+      const body = await response.body();
+      if (!body.length || body.length > 10 * 1024 * 1024) continue;
+      let verified = null;
+      for (const attempt of ocrAttempts) {
+        const png = await prepareImageForOcr(page, body, contentType, attempt);
+        await nutritionOcrWorker.setParameters({ tessedit_pageseg_mode: attempt.pageSegMode });
+        const { data } = await nutritionOcrWorker.recognize(png);
+        const parsed = parseOcrNutritionTable(data.text);
+        const validation = validateOcrNutrition(summarizeOcrNutrition(parsed));
+        if (!validation) continue;
+        const { summary, status } = validation;
+        const result = { ...summary, table: ocrNutritionTable(parsed, summary), confidence: data.confidence, imageUrl, status };
+        if (status === 'verified') {
+          // Keep reading this image while saturated fat is missing; another
+          // pass that verifies to the same macros may have read that row.
+          if (!verified) verified = result;
+          else if (sameReading(verified, result)) verified.table = mergeMissingRows(verified.table, result.table);
+          if (hasSaturatedFat(verified.table)) return verified;
+        } else if (!verified) unverified.push(result);
+      }
+      if (verified) return verified;
+    } catch (error) {
+      console.warn(`Could not OCR a product image: ${error.message}`);
+    }
+  }
+  const agreed = agreeingReading(unverified);
+  if (!agreed) return null;
+  // Keep only the values both passes agreed on; the rest of that table is unchecked.
+  const portion = `Porção: ${agreed.servingMassGrams} g`;
+  const rows = [[portion], ['Proteínas (g)', String(agreed.proteinGrams).replace('.', ',')],
+    ...(Number.isFinite(agreed.carbohydrateGrams) ? [['Carboidratos (g)', String(agreed.carbohydrateGrams).replace('.', ',')]] : [])]
+    .map((cells) => ({ label: cells[0], cells, text: cells.join(' | ') }));
+  return { ...agreed, table: { servingSize: `${agreed.servingMassGrams} g`, rows, text: rows.map((row) => row.text).join('\n') } };
 }
 
 function nutritionDetails(table) {
@@ -363,7 +739,9 @@ function nutritionDetails(table) {
   ];
   const energyRow = table.rows.find((row) => /valor energetico/i.test(normalize(row.label || row.text)));
   const energyKcalPerServing = parseAmount(energyRow?.cells?.[1] || energyRow?.text);
-  const servingMassGrams = parseAmount(table.servingSize?.match(/\d+(?:[.,]\d+)?\s*g\b/i)?.[0]);
+  const portionRow = table.rows.find((row) => /^\s*por[cç][aã]o\b/i.test(row.label || row.text || ''));
+  const servingMassGrams = parseAmount((portionRow?.label || portionRow?.text || '').match(/\d+(?:[.,]\d+)?\s*g\b/i)?.[0])
+    || parseAmount(table.servingSize?.match(/\d+(?:[.,]\d+)?\s*g\b/i)?.[0]);
   const aminoAcids = { essential: [], nonEssential: [] };
 
   for (const row of table.rows) {
@@ -382,12 +760,20 @@ function nutritionDetails(table) {
 
   return {
     servingMassGrams,
+    ...fatDetails(table),
     energyKcalPerServing,
     energyKcalPer100g: Number.isFinite(energyKcalPerServing) && Number.isFinite(servingMassGrams) && servingMassGrams > 0
       ? (energyKcalPerServing / servingMassGrams) * 100
       : null,
     aminoAcids: aminoAcids.essential.length || aminoAcids.nonEssential.length ? aminoAcids : null,
   };
+}
+
+function packageMassFromNutrition(table) {
+  if (!table?.text) return null;
+  const normalized = table.text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const match = normalized.match(/porcoes por embalagem[^\n(]*\(\s*(\d+(?:[.,]\d+)?)\s*g\s*\)/i);
+  return match ? Number(match[1].replace(',', '.')) : null;
 }
 
 function imageExtension(imageUrl, contentType) {
@@ -412,8 +798,9 @@ async function saveProductImages(catalog, context) {
     for (const product of products) {
       if (!product.imageUrl) continue;
       try {
+        const referer = product.url ? `${new URL(product.url).origin}/` : undefined;
         const response = await context.request.get(product.imageUrl, {
-          headers: { referer: 'https://www.gsuplementos.com.br/' },
+          headers: referer ? { referer } : {},
           timeout: 30000,
         });
         if (!response.ok()) throw new Error(`HTTP ${response.status()}`);
@@ -447,39 +834,115 @@ try {
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
 
-  const catalog = { whey: [] };
-  for (const [index, search] of searches.entries()) {
-    catalog[search.category] = await scrapeSearch(page, search.query, search.category);
-    console.log(`Found ${catalog[search.category].length} ${search.category} products.`);
-    if (index < searches.length - 1) await page.waitForTimeout(1500);
+  let existingCatalog = null;
+  if (sourceOnly) {
+    const selectedSource = sources.find((source) => source.brand.toLowerCase() === sourceOnly.toLowerCase());
+    if (!selectedSource) throw new Error(`Unknown product source "${sourceOnly}". Available: ${sources.map((source) => source.brand).join(', ')}`);
+    try {
+      existingCatalog = JSON.parse(await readFile(outputPath, 'utf8')).products;
+    } catch (error) {
+      throw new Error(`Could not load the existing catalog for a source-only update: ${error.message}`);
+    }
+  }
+
+  const catalog = { whey: [], sunscreen: [] };
+  const catalogProducts = new Map();
+  for (const source of sources.filter((item) => !sourceOnly || item.brand.toLowerCase() === sourceOnly.toLowerCase())) {
+    if (source.category && source.category !== 'whey') continue;
+    const searchUrls = source.searchUrls || [source.searchUrl];
+    let sourceProductCount = 0;
+    for (const [index, searchUrl] of searchUrls.entries()) {
+      const products = await scrapeSearch(page, { ...source, searchUrl }, 'whey');
+      sourceProductCount += products.length;
+      for (const product of products) {
+        const normalizedName = product.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const identity = `${product.brand}:${normalizedName}:${product.amount}${product.unit}`;
+        const existing = catalogProducts.get(identity);
+        if (!existing) catalogProducts.set(identity, product);
+        else {
+          if (product.price < existing.price) existing.price = product.price;
+          if (!existing.imageUrl && product.imageUrl) existing.imageUrl = product.imageUrl;
+        }
+      }
+      if (index < searchUrls.length - 1) await page.waitForTimeout(1200);
+    }
+    console.log(`Found ${sourceProductCount} whey listings from ${source.brand}.`);
+    await page.waitForTimeout(1200);
+  }
+  const refreshedWhey = [...catalogProducts.values()];
+  catalog.whey = sourceOnly
+    ? [...(existingCatalog?.whey || []).filter((product) => product.brand.toLowerCase() !== sourceOnly.toLowerCase()), ...refreshedWhey]
+    : refreshedWhey;
+
+  if (!sourceOnly || sources.find((source) => source.brand.toLowerCase() === sourceOnly.toLowerCase())?.category === 'sunscreen') {
+    const sunscreenSource = sources.find((source) => source.category === 'sunscreen');
+    catalog.sunscreen = await scrapeDutraSunscreens(page, sunscreenSource);
+    console.log(`Found ${catalog.sunscreen.length} Nutriex sunscreen listings from Dutra.`);
+    for (const vtexSource of vtexSunscreenSources) {
+      const source = { ...vtexSource, brand: vtexSource.store, vtex: true };
+      const found = (await fetchVtexSunscreens(source)).map((raw) => toProduct(raw, 'sunscreen', source)).filter((product) => product?.url);
+      catalog.sunscreen.push(...found);
+      console.log(`Found ${found.length} sunscreen listings from ${source.store}.`);
+    }
+  } else {
+    catalog.sunscreen = existingCatalog?.sunscreen || [];
   }
 
   if (catalog.whey.length === 0) {
     throw new Error('No whey products were extracted. The store page may have changed or blocked the browser; existing catalog was left untouched.');
   }
 
-  for (const product of catalog.whey) {
-    let detailsUrl = nutritionSourceUrl(product, catalog.whey);
-    if (!detailsUrl && /\b(?:2w|3w)\b/i.test(product.name)) {
-      const query = product.name.replace(/\b\d+(?:[.,]\d+)?\s*(?:kg|g)\b/i, '').trim();
-      const related = await scrapeSearch(page, query, 'whey');
-      const marker = product.name.match(/\b(?:2w|3w)\b/i)?.[0].toLowerCase();
-      detailsUrl = related.find((candidate) => candidate.url && candidate.name.toLowerCase().includes(marker))?.url;
-    }
+  let imageOcrRecoveries = 0;
+  for (const product of (sourceOnly ? refreshedWhey : catalog.whey)) {
+    const detailsUrl = nutritionSourceUrl(product, catalog.whey);
     if (!detailsUrl) {
       product.carbohydrateGrams = null;
       product.proteinGrams = null;
       product.carbProteinRatio = null;
       product.nutritionTable = null;
       product.nutritionDetails = null;
+      delete product.estimatedAmount;
       console.warn(`No product detail page found for nutrition data: ${product.name}`);
       continue;
     }
     const nutrition = await scrapeNutrition(page, detailsUrl);
+    // Listing pages lazy-load card images, so a card can come back without one.
+    if (!product.imageUrl && detailsUrl === product.url && nutrition.productImageUrl) product.imageUrl = nutrition.productImageUrl;
+    delete nutrition.productImageUrl;
+    const htmlServingMass = nutritionDetails(nutrition.nutritionTable)?.servingMassGrams;
+    if (!Number.isFinite(nutrition.proteinGrams) || !Number.isFinite(nutrition.carbohydrateGrams) || !Number.isFinite(htmlServingMass)) {
+      const imageNutrition = await readNutritionFromImages(context, page, nutrition.nutritionImageUrls, detailsUrl);
+      if (imageNutrition) {
+        nutrition.proteinGrams = imageNutrition.proteinGrams;
+        nutrition.carbohydrateGrams = imageNutrition.carbohydrateGrams;
+        nutrition.nutritionTable = imageNutrition.table;
+        nutrition.nutritionDataSource = 'product image OCR';
+        nutrition.nutritionOcrConfidence = imageNutrition.confidence;
+        nutrition.nutritionImageUrl = imageNutrition.imageUrl;
+        nutrition.nutritionOcrVerified = imageNutrition.status === 'verified';
+        if (!nutrition.nutritionOcrVerified) console.warn(`OCR nutrition for ${product.name} could not be checked against its energy value; review it.`);
+      }
+    }
+    delete nutrition.nutritionImageUrls;
+    if (product.estimatedAmount) {
+      const exactMass = packageMassFromNutrition(nutrition.nutritionTable);
+      if (Number.isFinite(exactMass) && exactMass > 0) {
+        product.amount = exactMass;
+        product.unit = 'g';
+      }
+      delete product.estimatedAmount;
+    }
     product.carbohydrateGrams = nutrition.carbohydrateGrams;
     product.proteinGrams = nutrition.proteinGrams;
     product.nutritionTable = nutrition.nutritionTable;
     product.nutritionDetails = nutritionDetails(nutrition.nutritionTable);
+    if (nutrition.nutritionDataSource) {
+      product.nutritionDataSource = nutrition.nutritionDataSource;
+      product.nutritionOcrConfidence = nutrition.nutritionOcrConfidence;
+      product.nutritionImageUrl = nutrition.nutritionImageUrl;
+      product.nutritionOcrVerified = nutrition.nutritionOcrVerified;
+      imageOcrRecoveries += 1;
+    }
     product.carbProteinRatio = Number.isFinite(nutrition.carbohydrateGrams)
       && Number.isFinite(nutrition.proteinGrams)
       && nutrition.proteinGrams > 0
@@ -488,16 +951,23 @@ try {
     if (product.carbProteinRatio === null) console.warn(`Nutrition facts not found for: ${product.name}`);
   }
 
+  if (!sourceOnly && !catalog.sunscreen.length) {
+    throw new Error('No Nutriex sunscreen products were extracted. The store page may have changed or blocked the browser; existing catalog was left untouched.');
+  }
+
   const imageCount = await saveProductImages(catalog, context);
   const output = {
-    source: 'https://www.gsuplementos.com.br',
+    sources: [...sources.map(({ brand, origin }) => ({ brand, url: origin })),
+      ...vtexSunscreenSources.map(({ store, origin }) => ({ brand: store, url: origin }))],
     updatedAt: new Date().toISOString(),
     products: catalog,
   };
   await mkdir(path.dirname(outputPath), { recursive: true });
   await writeFile(outputPath, `${JSON.stringify(output, null, 2)}\n`, 'utf8');
   console.log(`Saved ${catalog.whey.length} whey products and ${imageCount} product images to the local catalog.`);
+  console.log(`Recovered nutrition data from product images for ${imageOcrRecoveries} whey products.`);
   console.log('Review the data, then commit and push it to publish the updated catalog.');
 } finally {
+  if (nutritionOcrWorker) await nutritionOcrWorker.terminate();
   await browser.close();
 }

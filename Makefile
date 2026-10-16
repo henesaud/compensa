@@ -1,7 +1,12 @@
-.PHONY: update-products serve
+.PHONY: update-products serve build
+
+PORT ?= 8001
 
 update-products:
-	npm run update:products
+	npm run update:products -- $(if $(SOURCE),--source "$(SOURCE)")
 
 serve:
-	python3 -m http.server 8000
+	python3 scripts/serve.py $(PORT)
+
+build:
+	node scripts/build-site.mjs
