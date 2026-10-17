@@ -59,10 +59,16 @@ function proteinServingMass(product) {
   return match ? Number(match[1].replace(',', '.')) : null;
 }
 
+// The cheapest way to buy the product: the store, or the best Mercado Livre
+// offer (new, free shipping, well-rated seller; scripts/mercadolivre-catalog.mjs).
+const mercadoLivreOffer = (product) => product.mercadoLivre?.offer;
+const mercadoLivreIsCheaper = (product) => mercadoLivreOffer(product)?.price < product.price;
+const buyPrice = (product) => (mercadoLivreIsCheaper(product) ? mercadoLivreOffer(product).price : product.price);
+
 // Price per 100 g of creatine itself: flavored powders carry less of it.
 const CREATINE_DOSE_GRAMS = 3;
 const creatineUnitPrice = (product) => (product.creatineShare > 0
-  ? (product.price / (normalizedAmount(product) * product.creatineShare)) * 100 : null);
+  ? (buyPrice(product) / (normalizedAmount(product) * product.creatineShare)) * 100 : null);
 
 function getUnitPrice(product, category = activeCategory) {
   if (category === 'creatine') return creatineUnitPrice(product);
@@ -71,10 +77,10 @@ function getUnitPrice(product, category = activeCategory) {
     if (!Number.isFinite(product.proteinGrams) || product.proteinGrams <= 0
       || !Number.isFinite(servingMass) || servingMass <= 0) return null;
     const packageProtein = normalizedAmount(product) * (product.proteinGrams / servingMass);
-    return packageProtein > 0 ? (product.price / packageProtein) * 100 : null;
+    return packageProtein > 0 ? (buyPrice(product) / packageProtein) * 100 : null;
   }
   const divisor = normalizedAmount(product);
-  const unitValue = product.price / divisor;
+  const unitValue = buyPrice(product) / divisor;
   // Sunscreens are sold by ml or g; both are compared per 100.
   return ['ml', 'l'].includes(product.unit) || category === 'sunscreen' ? unitValue * 100 : unitValue * 1000;
 }
@@ -453,16 +459,16 @@ const SORTS = {
     carbProtein: { label: 'Carbo/proteína', value: (product) => product.carbProteinRatio },
     saturatedFat: { label: 'Gordura saturada', value: (product) => saturatedFatPer100g(product.nutritionDetails) },
     protein: { label: 'Proteína/100 g', value: proteinPer100g, descending: true },
-    price: { label: 'Preço', value: (product) => product.price },
+    price: { label: 'Preço', value: buyPrice },
   },
   creatine: {
     unitPrice: { label: 'Preço/100 g creatina', value: (product) => product.unitPrice },
-    price: { label: 'Preço', value: (product) => product.price },
+    price: { label: 'Preço', value: buyPrice },
   },
   sunscreen: {
     unitPrice: { label: 'Preço por quantidade', value: (product) => product.unitPrice },
     spf: { label: 'FPS', value: (product) => product.spf, descending: true },
-    price: { label: 'Preço', value: (product) => product.price },
+    price: { label: 'Preço', value: buyPrice },
   },
 };
 // Products are ordered by each chosen criterion in turn; a later one only
@@ -551,11 +557,20 @@ function renderProducts() {
     return;
   }
 
-  const bestPrice = Math.min(...filtered.map((product) => product.unitPrice).filter(Number.isFinite));
+  const bestUnitPrice = Math.min(...filtered.map((product) => product.unitPrice).filter(Number.isFinite));
   productGrid.innerHTML = filtered.map((product, productIndex) => {
     const unitLabel = getUnitLabel(activeCategory, product);
-    const isBest = Number.isFinite(product.unitPrice) && product.unitPrice === bestPrice;
-    const productLink = `<a class="product-link" href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer">Ver produto ↗</a>`;
+    const isBest = Number.isFinite(product.unitPrice) && product.unitPrice === bestUnitPrice;
+    const offer = mercadoLivreOffer(product);
+    const viaMercadoLivre = mercadoLivreIsCheaper(product);
+    const productLink = viaMercadoLivre
+      ? `<a class="product-link" href="${escapeHtml(offer.url)}" target="_blank" rel="noopener noreferrer">Ver no Mercado Livre ↗</a>`
+      : `<a class="product-link" href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer">Ver produto ↗</a>`;
+    // The other place to buy, shown under the price.
+    const otherOffer = !offer ? ''
+      : viaMercadoLivre
+        ? `<a class="other-offer" href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer">Na loja: ${currency.format(product.price)} ↗</a>`
+        : `<a class="other-offer" href="${escapeHtml(offer.url)}" target="_blank" rel="noopener noreferrer">No Mercado Livre: ${currency.format(offer.price)} ↗</a>`;
     const productImage = product.image
       ? `<img class="product-image" src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" loading="lazy" width="88" height="88">`
       : '';
@@ -611,8 +626,9 @@ function renderProducts() {
         </div>
         <div class="price-block">
           <div class="unit-price">${Number.isFinite(product.unitPrice) ? currency.format(product.unitPrice) : '—'}</div>
-          <div class="unit-caption"${product.nutritionDataSource === 'product image OCR' ? ' title="O peso da porção ou a proteína foi lido automaticamente da imagem do produto."' : ''}>${Number.isFinite(product.unitPrice) ? `por ${unitLabel}${product.paymentCondition ? ` · ${escapeHtml(product.paymentCondition)}` : ''}${product.nutritionDataSource === 'product image OCR' ? ' · imagem' : ''}` : `por ${unitLabel}`}</div>
-          <div class="package-price"><span>${formatAmount(product)}</span><strong>${currency.format(product.price)}</strong></div>
+          <div class="unit-caption"${product.nutritionDataSource === 'product image OCR' ? ' title="O peso da porção ou a proteína foi lido automaticamente da imagem do produto."' : ''}>${Number.isFinite(product.unitPrice) ? `por ${unitLabel}${product.paymentCondition && !viaMercadoLivre ? ` · ${escapeHtml(product.paymentCondition)}` : ''}${product.nutritionDataSource === 'product image OCR' ? ' · imagem' : ''}` : `por ${unitLabel}`}</div>
+          <div class="package-price"><span>${formatAmount(product)}${viaMercadoLivre ? ' · Mercado Livre' : ''}</span><strong>${currency.format(buyPrice(product))}</strong></div>
+          ${otherOffer}
           <label class="compare-toggle"><input type="checkbox" data-compare="${escapeHtml(compareKey(product))}"${compareSelection.includes(compareKey(product)) ? ' checked' : ''}> Comparar</label>
         </div>
       </article>`;
@@ -785,7 +801,8 @@ function compareRows(category, items) {
   const common = [
     { label: 'Preço por quantidade', value: (product) => getUnitPrice(product, category), better: 'low',
       text: (product) => `${currency.format(getUnitPrice(product, category))} por ${unitLabel(product)}` },
-    { label: 'Preço', value: (product) => product.price, text: (product) => `${currency.format(product.price)} (${formatAmount(product)})` },
+    { label: 'Preço', value: buyPrice,
+      text: (product) => `${currency.format(buyPrice(product))} (${formatAmount(product)})${mercadoLivreIsCheaper(product) ? ' no Mercado Livre' : ''}` },
     { label: 'Tipo', text: (product) => product.type },
   ];
   if (category === 'whey') {
@@ -837,7 +854,9 @@ function renderCompareDialog(items) {
       ${product.image ? `<img src="${escapeHtml(product.image)}" alt="" width="56" height="56" loading="lazy">` : ''}
       <p class="product-brand">${escapeHtml(product.brand)}${product.store ? ` · ${escapeHtml(product.store)}` : ''}</p>
       <p class="compare-name">${escapeHtml(product.name)}</p>
-      <a class="product-link" href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer">Ver produto ↗</a>
+      ${mercadoLivreIsCheaper(product)
+    ? `<a class="product-link" href="${escapeHtml(mercadoLivreOffer(product).url)}" target="_blank" rel="noopener noreferrer">Ver no Mercado Livre ↗</a>`
+    : `<a class="product-link" href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer">Ver produto ↗</a>`}
     </div>`).join('')}</div>`;
   const rows = compareRows(activeCategory, items).map((row) => {
     const texts = items.map((product) => {

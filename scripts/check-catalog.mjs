@@ -32,14 +32,17 @@ function sizesInName(name) {
   });
 }
 
+// Same as the site: the store or the Mercado Livre offer, whichever is cheaper.
+const bestPrice = (product) => Math.min(product.price, product.mercadoLivre?.offer?.price || Infinity);
+
 function unitPrice(product, category) {
   if (category === 'whey') {
     const serving = product.nutritionDetails?.servingMassGrams;
     if (!(product.proteinGrams > 0) || !(serving > 0)) return null;
-    return (product.price / (grams(product) * (product.proteinGrams / serving))) * 100;
+    return (bestPrice(product) / (grams(product) * (product.proteinGrams / serving))) * 100;
   }
-  if (category === 'creatine') return product.creatineShare > 0 ? (product.price / (grams(product) * product.creatineShare)) * 100 : null;
-  return (product.price / grams(product)) * 100;
+  if (category === 'creatine') return product.creatineShare > 0 ? (bestPrice(product) / (grams(product) * product.creatineShare)) * 100 : null;
+  return (bestPrice(product) / grams(product)) * 100;
 }
 
 const median = (values) => {
@@ -74,6 +77,10 @@ for (const [category, products] of Object.entries(catalog.products)) {
     }
     const [minPrice, maxPrice] = PRICE_RANGE[category] || [0.01, 1e6];
     if (!(product.price >= minPrice && product.price <= maxPrice)) report('error', category, label, `implausible price: R$ ${product.price}`);
+    const offer = product.mercadoLivre?.offer;
+    if (offer && offer.price < product.price / 2) {
+      report('warn', category, label, `Mercado Livre offer R$ ${offer.price} is under half the store's R$ ${product.price}; check it is the same item (${offer.url})`);
+    }
 
     // Category checks
     if (category === 'whey' && product.proteinGrams != null) {

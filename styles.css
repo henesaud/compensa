@@ -377,3 +377,7 @@ body:has(.compare-bar:not([hidden])) main { padding-bottom: 72px; }
   .compare-chip { max-width: 100%; }
   .compare-actions { justify-content: space-between; }
 }
+
+/* Second place to buy, under the price */
+.other-offer { display: block; margin-top: 6px; color: var(--brand); font-size: 11px; font-weight: 700; text-decoration: none; }
+.other-offer:hover { text-decoration: underline; }

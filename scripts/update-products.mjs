@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { chromium } from 'playwright';
 import { createWorker } from 'tesseract.js';
 import { fetchVtexSunscreens, vtexSunscreenSources } from './vtex-sunscreens.mjs';
-import { fetchCatalogProduct, mercadoLivreToken, searchCatalogProduct } from './mercadolivre-catalog.mjs';
+import { fetchBestOffer, fetchCatalogProduct, mercadoLivreToken, searchCatalogProduct } from './mercadolivre-catalog.mjs';
 import { productThumbnail } from './product-image.mjs';
 import { compareProducts, shrinkage } from './update-checks.mjs';
 import { fatDetails } from './nutrition-table.mjs';
@@ -288,6 +288,8 @@ async function addMercadoLivreData(sunscreens, previous) {
   }
   if (!token) console.warn('No Mercado Livre credentials (ML_CLIENT_ID, ML_CLIENT_SECRET); keeping previous catalog data.');
   let matched = 0;
+  let offers = 0;
+  const sellers = new Map();
   for (const product of sunscreens) {
     let data = previousByUrl.get(product.url);
     if (token) {
@@ -299,12 +301,24 @@ async function addMercadoLivreData(sunscreens, previous) {
         console.warn(`Could not read Mercado Livre data for ${product.name}: ${error.message}`);
       }
     }
-    if (data) {
-      product.mercadoLivre = data;
-      matched += 1;
+    if (!data) continue;
+    // Prices go stale fast, so an offer is only kept from this run.
+    delete data.offer;
+    if (token) {
+      try {
+        const offer = await fetchBestOffer(token, data.id, { storePrice: product.price, sellers });
+        if (offer) {
+          data.offer = offer;
+          offers += 1;
+        }
+      } catch (error) {
+        console.warn(`Could not read Mercado Livre offers for ${product.name}: ${error.message}`);
+      }
     }
+    product.mercadoLivre = data;
+    matched += 1;
   }
-  console.log(`Found Mercado Livre catalog data for ${matched} of ${sunscreens.length} sunscreens.`);
+  console.log(`Found Mercado Livre catalog data for ${matched} of ${sunscreens.length} sunscreens, with an offer for ${offers}.`);
 }
 
 function isDirectProductUrl(value, source) {

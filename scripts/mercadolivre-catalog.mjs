@@ -1,6 +1,8 @@
 // Looks up sunscreens in the Mercado Livre product catalog by barcode to read
-// the attributes it lists (water resistance, oil free, tint, kids...). The
-// catalog has no prices or reviews for apps like ours, only product data.
+// the attributes it lists (water resistance, oil free, tint, kids...), and the
+// cheapest trustworthy offer for that catalog product. Search, single
+// listings and reviews are blocked for apps like ours (403); a catalog
+// product's list of offers is not.
 //
 // Needs ML_CLIENT_ID and ML_CLIENT_SECRET (a Mercado Livre developer app) in
 // the environment or in .env; without them the lookup is skipped.
@@ -28,9 +30,18 @@ const attributesOf = (result) => Object.fromEntries((result.attributes || [])
   .filter((attribute) => attribute.value_name != null)
   .map((attribute) => [attribute.id, attribute.value_name]));
 
+// Mercado Livre answers bursts with HTTP 429; wait and try again.
+async function apiFetch(token, url) {
+  for (let attempt = 1; ; attempt += 1) {
+    const response = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
+    if (response.status !== 429 || attempt === 4) return response;
+    await new Promise((resolve) => setTimeout(resolve, 3000 * attempt));
+  }
+}
+
 async function catalogSearch(token, params) {
   const url = `${API}/products/search?${new URLSearchParams({ status: 'active', site_id: 'MLB', ...params })}`;
-  const response = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
+  const response = await apiFetch(token, url);
   if (!response.ok) throw new Error(`HTTP ${response.status} from Mercado Livre catalog`);
   return (await response.json()).results || [];
 }
@@ -97,4 +108,46 @@ export async function searchCatalogProduct(token, product) {
     return { result, score: [...ours].filter((word) => theirs.has(word)).length / Math.max(ours.size, 1) };
   }).sort((a, b) => b.score - a.score);
   return candidates.length ? withDetails(token, candidates[0].result) : null;
+}
+
+// Seller reputation colors from Mercado Livre ("5_green" is the best level).
+const TRUSTED_LEVELS = new Set(['5_green', '4_light_green']);
+
+async function sellerLevel(token, sellerId, cache) {
+  if (!cache.has(sellerId)) {
+    cache.set(sellerId, apiFetch(token, `${API}/users/${sellerId}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((user) => user?.seller_reputation?.level_id || null)
+      .catch(() => null));
+  }
+  return cache.get(sellerId);
+}
+
+// Returns the cheapest new offer with free shipping from a well-rated seller,
+// as { price, originalPrice, itemId, url, sellerLevel }, or null. The API
+// gives no shipping cost, so offers with paid shipping are left out: their
+// listed price is not what the buyer pays. An offer under a third or over
+// three times the store's price is treated as a different item (a sample, a
+// kit, a wrong catalog match).
+export async function fetchBestOffer(token, catalogProductId, { storePrice, sellers = new Map() } = {}) {
+  const response = await apiFetch(token, `${API}/products/${catalogProductId}/items`);
+  if (response.status === 404) return null; // no one is selling it right now
+  if (!response.ok) throw new Error(`HTTP ${response.status} from Mercado Livre offers`);
+  const offers = ((await response.json()).results || [])
+    .filter((offer) => offer.condition === 'new' && offer.shipping?.free_shipping && offer.currency_id === 'BRL'
+      && Number(offer.price) > 0 && (offer.min_purchase_unit || 1) === 1
+      && (!storePrice || (Number(offer.price) >= storePrice / 3 && Number(offer.price) <= storePrice * 3)))
+    .sort((a, b) => a.price - b.price);
+  for (const offer of offers) {
+    const level = await sellerLevel(token, offer.seller_id, sellers);
+    if (!TRUSTED_LEVELS.has(level)) continue;
+    return {
+      price: Number(offer.price),
+      originalPrice: Number(offer.original_price) || undefined,
+      itemId: offer.item_id,
+      url: `https://produto.mercadolivre.com.br/${offer.item_id.replace(/^MLB/, 'MLB-')}`,
+      sellerLevel: level,
+    };
+  }
+  return null;
 }
