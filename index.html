@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#f7f6f2">
+    <meta name="theme-color" content="#f4edec">
     <meta name="description" content="Compare preços por peso ou volume e encontre o melhor custo-benefício.">
     <title>Compensa? — compare preços</title>
     <meta property="og:type" content="website">
@@ -23,13 +23,39 @@
       gtag('js', new Date());
       gtag('config', 'G-VXZPZ6TDW4');
     </script>
-    <link rel="stylesheet" href="styles.css?v=19">
+    <script>
+      // Light by default; the header select saves the choice in localStorage.
+      (function () {
+        var theme = 'light';
+        try { theme = localStorage.getItem('theme') || 'light'; } catch (e) {}
+        document.documentElement.dataset.theme = theme;
+        document.addEventListener('DOMContentLoaded', function () {
+          var button = document.getElementById('theme-toggle');
+          var sync = function () {
+            var dark = theme === 'dark';
+            button.setAttribute('aria-pressed', String(dark));
+            button.title = dark ? 'Modo claro' : 'Modo escuro';
+          };
+          sync();
+          button.addEventListener('click', function () {
+            theme = theme === 'dark' ? 'light' : 'dark';
+            document.documentElement.dataset.theme = theme;
+            try { localStorage.setItem('theme', theme); } catch (e) {}
+            sync();
+          });
+        });
+      })();
+    </script>
+    <link rel="stylesheet" href="styles.css?v=23">
     <script src="script.js?v=18" defer></script>
   </head>
   <body>
     <header class="site-header">
       <a class="wordmark" href="#inicio" aria-label="Compensa?, início"><span class="wordmark-icon" aria-hidden="true">◆</span> compensa<span>?</span></a>
-      <span class="header-note">Comparador de preços</span>
+      <div class="header-tools">
+        <span class="header-note">Comparador de preços</span>
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Modo escuro" aria-pressed="false"><span class="theme-icon-dark" aria-hidden="true">☾</span><span class="theme-icon-light" aria-hidden="true">☀</span></button>
+      </div>
     </header>
 
     <main id="inicio">
