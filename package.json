@@ -5,7 +5,8 @@
   "scripts": {
     "update:products": "node scripts/update-products.mjs",
     "build": "node scripts/build-site.mjs",
-    "test": "node --test scripts/"
+    "test": "node --test scripts/",
+    "check": "node scripts/check-catalog.mjs"
   },
   "devDependencies": {
     "playwright": "^1.58.0",

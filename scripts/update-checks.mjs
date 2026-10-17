@@ -26,10 +26,12 @@ export function shrinkage(foundCount, previousCount) {
 // Lists products, matched by URL, that lost nutrition data or whose price
 // moved more than MAX_PRICE_CHANGE since the previous catalog.
 export function compareProducts(previousProducts, currentProducts) {
-  const previousByUrl = new Map(previousProducts.filter((product) => product.url).map((product) => [product.url, product]));
+  // Sizes sold on one page share its address, so the size is part of the key.
+  const key = (product) => `${product.url} ${product.amount}${product.unit}`;
+  const previousByKey = new Map(previousProducts.filter((product) => product.url).map((product) => [key(product), product]));
   const problems = [];
   for (const product of currentProducts) {
-    const previous = previousByUrl.get(product.url);
+    const previous = previousByKey.get(key(product));
     if (!previous) continue;
     const lost = Object.entries(NUTRITION_FIELDS)
       .filter(([, value]) => Number.isFinite(value(previous)) && !Number.isFinite(value(product)))

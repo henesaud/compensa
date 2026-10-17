@@ -14,7 +14,9 @@ export const vtexSunscreenSources = [
     store: 'Drogaria São Paulo',
     origin: 'https://www.drogariasaopaulo.com.br',
     konfidencyCustomer: 'drogariasaopaulo',
-    brands: ['Sundown', 'Episol', 'Cenoura e Bronze', 'Principia', 'Sallve', 'Sunless', 'Nivea', 'Anasol', 'Helioderm', 'Nutriex', 'Oaz'],
+    brands: ['Sundown', 'Episol', 'Cenoura e Bronze', 'Principia', 'Sallve', 'Sunless', 'Nivea', 'Anasol', 'Helioderm', 'Nutriex', 'Oaz',
+      'Isdin', 'La Roche-Posay', 'Eucerin', 'Vichy', 'Avène', 'Bioderma', 'Ollie', 'Pink Cheeks', 'Mustela', 'Neutrogena',
+      'Neostrata', 'Cicatricure', 'Banana Boat', 'Darrow', 'Australian Gold', "L'Oréal Paris"],
   },
 ];
 
@@ -24,19 +26,33 @@ const MANUFACTURERS = {
   Sunless: ['Farmax'],
   Helioderm: ['Kley Hertz'],
   Oaz: ['Eurofarma'],
+  "L'Oréal Paris": ['L Oréal'],
+};
+// Other spellings the store uses for the same brand.
+const ALIASES = {
+  'La Roche-Posay': ['La Roche'],
 };
 
 const PAGE_SIZE = 50;
 const MAX_PAGES = 6;
 const normalize = (value) => String(value || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-  .replace(/&/g, 'e').replace(/\s+/g, ' ').trim();
+  .replace(/&/g, 'e').replace(/[-'’]/g, ' ').replace(/\s+/g, ' ').trim();
 
-async function searchStore(origin, query) {
+// The store sometimes answers a burst of searches with HTTP 500 or 429.
+async function fetchWithRetry(url) {
+  for (let attempt = 1; ; attempt += 1) {
+    const response = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0', accept: 'application/json' } });
+    if (response.ok || attempt === 4 || ![429, 500, 502, 503].includes(response.status)) return response;
+    await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+  }
+}
+
+export async function searchStore(origin, query) {
   const results = [];
   for (let page = 0; page < MAX_PAGES; page += 1) {
     const from = page * PAGE_SIZE;
     const url = `${origin}/api/catalog_system/pub/products/search?ft=${encodeURIComponent(query)}&_from=${from}&_to=${from + PAGE_SIZE - 1}`;
-    const response = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0', accept: 'application/json' } });
+    const response = await fetchWithRetry(url);
     if (!response.ok) throw new Error(`HTTP ${response.status} from ${url}`);
     const batch = await response.json();
     results.push(...batch);
@@ -88,12 +104,13 @@ async function reviews(source, item, sku) {
 export async function fetchVtexSunscreens(source) {
   const listings = new Map();
   for (const brand of source.brands) {
-    for (const item of await searchStore(source.origin, `protetor solar ${brand}`)) {
+    for (const item of await searchStore(source.origin, `protetor solar ${brand.replace(/['’]/g, ' ')}`)) {
       const name = String(item.productName || '').replace(/\s+/g, ' ').trim();
       const byManufacturer = (MANUFACTURERS[brand] || []).some((maker) => normalize(item.brand) === normalize(maker))
         && normalize(name).includes(normalize(brand));
-      if (normalize(item.brand) !== normalize(brand) && !byManufacturer) continue;
-      if (!/fps\s*\d{2,3}|\d{2,3}\s*fps/i.test(name) || /\bkit\b|\+|\b\d+\s*unidades\b|\bbase\b|compact|estojo|refil/i.test(name)) continue;
+      const sameBrand = [brand, ...(ALIASES[brand] || [])].some((name) => normalize(item.brand) === normalize(name));
+      if (!sameBrand && !byManufacturer) continue;
+      if (!/fps\s*\d{2,3}|\d{2,3}\s*fps/i.test(name) || /\bkit\b|\+|\b\d+\s*unidades\b|\bbase\b|compact|estojo|refil|labial|l[áa]bios|batom|gloss|blush|p[óo] transl/i.test(name)) continue;
       const sku = item.items?.find((candidate) => candidate.sellers?.some((seller) => seller.commertialOffer?.AvailableQuantity > 0));
       const offer = sku?.sellers.find((seller) => seller.commertialOffer?.AvailableQuantity > 0)?.commertialOffer;
       if (!offer?.Price) continue;

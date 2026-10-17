@@ -11,10 +11,18 @@ const nutritionDialogContent = document.querySelector('#nutrition-dialog-content
 const guideButton = document.querySelector('#guide-button');
 const guideDialog = document.querySelector('#guide-dialog');
 let activeCategory = 'whey';
-let products = { whey: [], sunscreen: [] };
+let products = { whey: [], sunscreen: [], creatine: [] };
 let visibleProducts = [];
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+// Product page paths of stores without a shared platform pattern; keep in
+// sync with productPath in scripts/update-products.mjs.
+const OTHER_PRODUCT_PATHS = {
+  'duxhumanhealth.com': /^\/produtos\/[^/]+\/?$/,
+  'www.adaptogen.com.br': /^\/produto\/[^/]+$/,
+  'www.newnutrition.com.br': /^\/[^/]+\/p$/,
+};
 
 function isDirectProductUrl(value) {
   try {
@@ -23,9 +31,13 @@ function isDirectProductUrl(value) {
     const maxTitaniumProduct = url.hostname === 'www.maxtitanium.com.br' && /\/p$/i.test(url.pathname);
     const essentialNutritionProduct = url.hostname === 'www.essentialnutrition.com.br' && /^\/[^/]*whey[^/]*\/?$/i.test(url.pathname);
     const lojaDoMecanicoProduct = url.hostname === 'www.lojadomecanico.com.br' && /^\/produto\/\d+\//.test(url.pathname);
-    const vtexSunscreenProduct = ['www.lojaadcos.com.br', 'www.dermage.com.br', 'www.drogariasaopaulo.com.br'].includes(url.hostname)
+    const vtexProduct = ['www.lojaadcos.com.br', 'www.dermage.com.br', 'www.drogariasaopaulo.com.br', 'www.probiotica.com.br',
+      'www.nutrify.com.br', 'www.vitafor.com.br', 'www.atlheticanutrition.com.br', 'www.blackskullusa.com.br'].includes(url.hostname)
       && /\/p$/i.test(url.pathname);
-    return growthProduct || maxTitaniumProduct || essentialNutritionProduct || lojaDoMecanicoProduct || vtexSunscreenProduct;
+    const shopifyProduct = ['vivatrue.com.br', 'soldiersnutrition.com.br', 'darklabsuplementos.com.br', 'ftw.com.br'].includes(url.hostname)
+      && /^\/products\/[^/]+$/.test(url.pathname);
+    const otherProduct = OTHER_PRODUCT_PATHS[url.hostname]?.test(url.pathname);
+    return growthProduct || maxTitaniumProduct || essentialNutritionProduct || lojaDoMecanicoProduct || vtexProduct || shopifyProduct || Boolean(otherProduct);
   } catch {
     return false;
   }
@@ -47,7 +59,13 @@ function proteinServingMass(product) {
   return match ? Number(match[1].replace(',', '.')) : null;
 }
 
+// Price per 100 g of creatine itself: flavored powders carry less of it.
+const CREATINE_DOSE_GRAMS = 3;
+const creatineUnitPrice = (product) => (product.creatineShare > 0
+  ? (product.price / (normalizedAmount(product) * product.creatineShare)) * 100 : null);
+
 function getUnitPrice(product, category = activeCategory) {
+  if (category === 'creatine') return creatineUnitPrice(product);
   if (category === 'whey') {
     const servingMass = proteinServingMass(product);
     if (!Number.isFinite(product.proteinGrams) || product.proteinGrams <= 0
@@ -65,6 +83,7 @@ function getUnitPrice(product, category = activeCategory) {
 const sunscreenMeasure = (product) => (product.unit === 'g' ? 'g' : 'ml');
 
 function getUnitLabel(category, product) {
+  if (category === 'creatine') return '100 g de creatina';
   return category === 'whey' ? '100 g de proteína' : `100 ${sunscreenMeasure(product)}`;
 }
 
@@ -222,13 +241,13 @@ const plainName = (product) => product.name.normalize('NFD').replace(/[̀-ͯ]/g,
 const catalogSays = (product, attribute) => product.mercadoLivre?.attributes?.[attribute];
 const TINTED_NAME = /com cor|colou?r|\btom\b|\bcor\b|tonaliz|\bfluido? cor/;
 const FEATURES = [
-  { value: 'water', label: 'Resistente à água', attribute: 'IS_WATER_RESISTANT', test: (product) => catalogSays(product, 'IS_WATER_RESISTANT') === 'Sim' },
-  { value: 'oil-free', label: 'Oil free', attribute: 'IS_OIL_FREE', test: (product) => catalogSays(product, 'IS_OIL_FREE') === 'Sim' || /oil.?free|livre de oleo/.test(plainName(product)) },
+  { value: 'water', label: 'Resistente à água', help: 'Continua protegendo por até 40 minutos na água ou suando. Se o rótulo disser "muito resistente à água", por até 80 minutos. Depois disso, ou ao se secar com a toalha, passe de novo.', attribute: 'IS_WATER_RESISTANT', test: (product) => catalogSays(product, 'IS_WATER_RESISTANT') === 'Sim' },
+  { value: 'oil-free', label: 'Oil free', help: 'Sem óleos na fórmula. Costuma deixar menos brilho, bom para pele oleosa ou com acne.', attribute: 'IS_OIL_FREE', test: (product) => catalogSays(product, 'IS_OIL_FREE') === 'Sim' || /oil.?free|livre de oleo/.test(plainName(product)) },
   { value: 'tinted', label: 'Com cor', attribute: 'WITH_COLOR', test: (product) => catalogSays(product, 'WITH_COLOR') === 'Sim' || TINTED_NAME.test(plainName(product)) },
   { value: 'untinted', label: 'Sem cor', card: false, test: (product) => catalogSays(product, 'WITH_COLOR') === 'Não' && !TINTED_NAME.test(plainName(product)) },
   { value: 'eyes', label: 'Indicado para perto dos olhos', attribute: 'IS_SUITABLE_FOR_EYE_CONTOUR', test: (product) => catalogSays(product, 'IS_SUITABLE_FOR_EYE_CONTOUR') === 'Sim' },
   { value: 'kids', label: 'Infantil', attribute: 'IS_INFANT', test: (product) => catalogSays(product, 'IS_INFANT') === 'Sim' || /\bkids\b|infantil|\bbaby\b|\bbebe|crianc/.test(plainName(product)) },
-  { value: 'hypoallergenic', label: 'Hipoalergênico', attribute: 'IS_HYPOALLERGENIC_PRODUCT', test: (product) => catalogSays(product, 'IS_HYPOALLERGENIC_PRODUCT') === 'Sim' },
+  { value: 'hypoallergenic', label: 'Hipoalergênico', help: 'Fórmula feita para reduzir o risco de alergia. Não garante que não haverá reação.', attribute: 'IS_HYPOALLERGENIC_PRODUCT', test: (product) => catalogSays(product, 'IS_HYPOALLERGENIC_PRODUCT') === 'Sim' },
   { value: 'fragrance-free', label: 'Sem fragrância', attribute: 'IS_FRAGRANCE_FREE', test: (product) => catalogSays(product, 'IS_FRAGRANCE_FREE') === 'Sim' },
 ];
 
@@ -293,6 +312,61 @@ function renderSunscreenDialog(product) {
     <p class="nutrition-modal-note">As características vêm do catálogo do Mercado Livre${product.mercadoLivre ? '' : ' (este produto não foi encontrado lá)'} ou do nome do produto e podem ter erros. Confira na embalagem.</p>`;
 }
 
+const ALLERGEN_NAMES = {
+  leite: 'leite', soja: 'soja', ovo: 'ovo', trigo: 'trigo', aveia: 'aveia', centeio: 'centeio', cevada: 'cevada',
+  amendoim: 'amendoim', amendoa: 'amêndoa', avela: 'avelã', 'castanha-de-caju': 'castanha-de-caju',
+  'castanha-do-para': 'castanha-do-pará', macadamia: 'macadâmia', nozes: 'nozes', peixe: 'peixe', crustaceos: 'crustáceos',
+};
+const allergenNames = (keys = []) => keys.map((key) => ALLERGEN_NAMES[key] || key).join(', ');
+const LABEL_ANSWERS = { yes: 'Contém', no: 'Não contém', depends: 'Depende do sabor' };
+const hasAllergen = (product, key) => [...(product.allergens?.contains || []), ...(product.allergens?.mayContain || [])].includes(key);
+// Label filters; an option shows only when some product matches it.
+const WHEY_RESTRICTIONS = [
+  { value: 'gluten-free', label: 'Sem glúten', test: (product) => product.gluten === 'no' },
+  { value: 'lactose-free', label: 'Sem lactose', test: (product) => product.lactose === 'no' },
+  { value: 'soy-free', label: 'Sem soja', test: (product) => Boolean(product.allergens) && !hasAllergen(product, 'soja') },
+  { value: 'egg-free', label: 'Sem ovo', test: (product) => Boolean(product.allergens) && !hasAllergen(product, 'ovo') },
+];
+
+function labelLine(product) {
+  const labels = [
+    product.gluten === 'no' ? 'Sem glúten' : product.gluten === 'yes' ? 'Contém glúten' : product.gluten === 'depends' ? 'Glúten depende do sabor' : '',
+    product.lactose === 'no' ? 'Sem lactose' : product.lactose === 'yes' ? 'Contém lactose' : '',
+    ...(product.allergens?.contains || []).filter((key) => key !== 'leite').map((key) => `Contém ${ALLERGEN_NAMES[key] || key}`),
+  ].filter(Boolean);
+  return labels.length ? `<p class="product-features">${labels.map(escapeHtml).join(' <span>·</span> ')}</p>` : '';
+}
+
+function renderLabelDialog(product) {
+  const answer = (value) => LABEL_ANSWERS[value] || '';
+  return `
+    <section class="details-section">
+      <h3>Alergênicos</h3>
+      <dl class="details-list">
+        ${detailRow('Glúten', answer(product.gluten))}
+        ${detailRow('Lactose', answer(product.lactose))}
+        ${detailRow('Contém', allergenNames(product.allergens?.contains))}
+        ${product.allergens?.mayContain?.length ? detailRow('Pode conter', allergenNames(product.allergens.mayContain)) : ''}
+      </dl>
+    </section>
+    ${product.ingredients ? `<section class="details-section"><details open><summary>Ingredientes</summary><p class="details-text details-ingredients">${escapeHtml(product.ingredients)}</p></details></section>` : ''}
+    <p class="nutrition-modal-note">Lido automaticamente do texto do rótulo na página da loja e pode ter erros. "Sem dado" quando a página não diz. Confira na embalagem.</p>`;
+}
+
+// How much of the powder is creatine, and where that came from.
+function creatineDetails(product, productIndex) {
+  const percent = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format((product.creatineShare || 0) * 100);
+  const share = !product.creatineShare ? 'Teor de creatina: sem dado'
+    : product.creatineSource === 'table'
+      ? `${formatNutritionAmount(product.creatinePerServingGrams)} g de creatina a cada ${formatNutritionAmount(product.servingMassGrams)} g (${percent}%)`
+      : `${percent}% creatina (pela ${product.creatineSource === 'ingredients' ? 'lista de ingredientes' : 'descrição do produto'})`;
+  const unitPrice = creatineUnitPrice(product);
+  const dose = Number.isFinite(unitPrice) ? ` <span>·</span> Dose de ${CREATINE_DOSE_GRAMS} g: ${currency.format((unitPrice / 100) * CREATINE_DOSE_GRAMS)}` : '';
+  return `<p class="product-meta">${escapeHtml(product.type)}${dose}</p>
+    <p class="product-features">${escapeHtml(share)}</p>
+    ${product.ingredients || product.allergens ? `<button class="details-button" type="button" data-whey-label data-product-index="${productIndex}" aria-haspopup="dialog">Rótulo</button>` : ''}`;
+}
+
 function featureLine(product) {
   const labels = FEATURES.filter((feature) => feature.card !== false && feature.test(product)).map((feature) => feature.label);
   return labels.length ? `<p class="product-features">${labels.join(' <span>·</span> ')}</p>` : '';
@@ -318,9 +392,52 @@ function reviewSummary(product) {
     </div>`;
 }
 
-function addFilter(label, key, values, allLabel = 'Qualquer') {
-  const options = values.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('');
-  return `<div class="filter-control"><label for="filter-${key}">${label}</label><select id="filter-${key}" data-filter="${key}"><option value="">${allLabel}</option>${options}</select></div>`;
+// What each product type means; the type comes from words in the name.
+const TYPE_HELP = {
+  Concentrado: 'O mais comum e barato. Tem de 70% a 80% de proteína e mantém um pouco de gordura e lactose.',
+  Isolado: 'Filtrado para chegar a 90% de proteína ou mais, com pouca gordura e lactose.',
+  Hidrolisado: 'A proteína vem quebrada em partes menores, então é digerida mais rápido. O mais caro.',
+  Blend: 'Mistura de tipos de proteína, como concentrado, isolado e hidrolisado ("3W") ou whey com ovo. Confira a proporção no rótulo.',
+  'Whey protein': 'O nome não diz o tipo. Na maioria das vezes é concentrado.',
+  'Uso geral': 'O nome não diz se é para rosto ou corpo.',
+  Monohidratada: 'A forma de creatina estudada e recomendada. Funciona igual em qualquer marca de boa procedência.',
+  Creapure: 'Creatina monohidratada fabricada na Alemanha pela AlzChem, com controle de pureza próprio. Mais cara; o efeito é o mesmo da monohidratada pura.',
+};
+
+// A dropdown of checkboxes. Filters in MATCH_ALL keep products that have
+// every checked option; the others keep products that have any of them.
+const MATCH_ALL = new Set(['feature', 'restriction']);
+
+function addFilter(label, key, options, allLabel = 'Todos') {
+  // An option with `help` gets an ⓘ button with a balloon, shown on hover or tap.
+  const items = options.map((option) => (typeof option === 'string' ? { value: option, label: option } : option))
+    .map((option, index) => {
+      const helpId = `filter-${key}-help-${index}`;
+      const checkbox = `<label class="filter-option"><input type="checkbox" data-filter="${key}" value="${escapeHtml(option.value)}" data-label="${escapeHtml(option.label)}"><span>${escapeHtml(option.label)}</span></label>`;
+      if (!option.help) return checkbox;
+      return `<div class="filter-option-row">${checkbox}<button class="filter-info" type="button" data-filter-help aria-expanded="false" aria-describedby="${helpId}" aria-label="O que é ${escapeHtml(option.label)}?">i</button><span class="filter-balloon" id="${helpId}" role="tooltip">${escapeHtml(option.help)}</span></div>`;
+    }).join('');
+  const hint = MATCH_ALL.has(key) ? 'Com todas as marcadas' : 'Com qualquer uma das marcadas';
+  return `<div class="filter-control"><span class="filter-label" id="filter-${key}-label">${label}</span>
+    <details class="filter-menu" data-filter-menu="${key}" data-all-label="${escapeHtml(allLabel)}">
+      <summary class="filter-trigger" aria-labelledby="filter-${key}-label filter-${key}-value"><span class="filter-value" id="filter-${key}-value">${escapeHtml(allLabel)}</span><span class="filter-count" hidden></span></summary>
+      <div class="filter-dropdown" role="group" aria-labelledby="filter-${key}-label">
+        ${items}
+        <div class="filter-dropdown-footer"><span>${hint}</span><button class="filter-clear" type="button" data-filter-clear="${key}">Limpar</button></div>
+      </div>
+    </details></div>`;
+}
+
+// Shows "Todas", the one checked option, or the first one and "+N".
+function updateFilterSummaries() {
+  for (const menu of filterControls.querySelectorAll('[data-filter-menu]')) {
+    const checked = [...menu.querySelectorAll('input:checked')].map((input) => input.dataset.label);
+    menu.classList.toggle('has-value', checked.length > 0);
+    menu.querySelector('.filter-value').textContent = checked[0] || menu.dataset.allLabel;
+    const count = menu.querySelector('.filter-count');
+    count.hidden = checked.length < 2;
+    count.textContent = `+${checked.length - 1}`;
+  }
 }
 
 const proteinPer100g = (product) => {
@@ -336,6 +453,10 @@ const SORTS = {
     carbProtein: { label: 'Carbo/proteína', value: (product) => product.carbProteinRatio },
     saturatedFat: { label: 'Gordura saturada', value: (product) => saturatedFatPer100g(product.nutritionDetails) },
     protein: { label: 'Proteína/100 g', value: proteinPer100g, descending: true },
+    price: { label: 'Preço', value: (product) => product.price },
+  },
+  creatine: {
+    unitPrice: { label: 'Preço/100 g creatina', value: (product) => product.unitPrice },
     price: { label: 'Preço', value: (product) => product.price },
   },
   sunscreen: {
@@ -368,16 +489,23 @@ function renderFilters() {
   }
   const brands = [...new Set(categoryProducts.map((product) => product.brand))].sort();
   const types = [...new Set(categoryProducts.map((product) => product.type))].sort();
-  let markup = addFilter('Marca', 'brand', brands, 'Todas as marcas');
+  let markup = addFilter('Marca', 'brand', brands, 'Todas');
 
-  markup += addFilter('Tipo', 'type', types);
+  markup += addFilter('Tipo', 'type', types.map((type) => ({ value: type, label: type, help: TYPE_HELP[type] })));
+  if (activeCategory === 'whey') {
+    const restrictions = WHEY_RESTRICTIONS.filter((restriction) => categoryProducts.some(restriction.test));
+    if (restrictions.length) markup += addFilter('Restrição', 'restriction', restrictions, 'Nenhuma');
+  }
   if (activeCategory === 'sunscreen') {
     const spfs = [...new Set(categoryProducts.map((product) => product.spf).filter(Number.isFinite))].sort((a, b) => a - b);
-    markup += addFilter('FPS', 'spf', spfs.map(String), 'Todos');
-    markup += `<div class="filter-control"><label for="filter-feature">Característica</label><select id="filter-feature" data-filter="feature"><option value="">Qualquer</option>${FEATURES
-      .map((feature) => `<option value="${feature.value}">${feature.label}</option>`).join('')}</select></div>`;
-    markup += `<div class="filter-control"><label for="filter-measure">Medida</label><select id="filter-measure" data-filter="measure">
-      <option value="ml">ml (loções, fluidos, sprays)</option><option value="g">g (cremes, géis, bastões)</option></select></div>`;
+    markup += addFilter('FPS', 'spf', spfs.map(String));
+    markup += addFilter('Característica', 'feature', FEATURES, 'Qualquer');
+    // Prices per ml and per g can't be compared, so only one measure shows.
+    markup += `<div class="filter-control"><span class="filter-label" id="filter-measure-label">Medida</span>
+      <div class="filter-segmented" role="radiogroup" aria-labelledby="filter-measure-label">
+        <label title="Loções, fluidos, sprays"><input type="radio" name="measure" data-filter="measure" value="ml" checked><span>ml</span></label>
+        <label title="Cremes, géis, bastões"><input type="radio" name="measure" data-filter="measure" value="g"><span>g</span></label>
+      </div></div>`;
   }
   markup += `<div class="filter-control sort-control"><span class="sort-label">Ordenar por</span><div class="sort-buttons" role="group" aria-label="Ordenar por">${renderSortButtons()}</div></div>`;
 
@@ -385,14 +513,17 @@ function renderFilters() {
 }
 
 function renderProducts() {
-  const selectedFilters = Object.fromEntries([...filterControls.querySelectorAll('[data-filter]')]
-    .map((select) => [select.dataset.filter, select.value]));
+  const selectedFilters = {};
+  for (const input of filterControls.querySelectorAll('[data-filter]:checked')) (selectedFilters[input.dataset.filter] ||= []).push(input.value);
   const linkedProducts = products[activeCategory].filter((product) => isDirectProductUrl(product.url));
   const filtered = linkedProducts
-    .filter((product) => Object.entries(selectedFilters).every(([key, value]) => {
-      if (!value) return true;
-      if (key === 'feature') return FEATURES.find((feature) => feature.value === value).test(product);
-      return String(key === 'measure' ? sunscreenMeasure(product) : product[key]) === value;
+    .filter((product) => Object.entries(selectedFilters).every(([key, values]) => {
+      const matches = (value) => {
+        if (key === 'feature') return FEATURES.find((feature) => feature.value === value).test(product);
+        if (key === 'restriction') return WHEY_RESTRICTIONS.find((restriction) => restriction.value === value).test(product);
+        return String(key === 'measure' ? sunscreenMeasure(product) : product[key]) === value;
+      };
+      return MATCH_ALL.has(key) ? values.every(matches) : values.some(matches);
     }))
     .map((product) => ({ ...product, unitPrice: getUnitPrice(product, activeCategory) }))
     .sort((a, b) => {
@@ -453,14 +584,14 @@ function renderProducts() {
         : 'Sem dado';
     return `
       <article class="product-card${isBest ? ' best-value' : ''}">
-        ${isBest ? `<span class="best-label">${activeCategory === 'whey' ? 'MELHOR VALOR' : 'MENOR PREÇO'}</span>` : ''}
+        ${isBest ? `<span class="best-label">${activeCategory === 'sunscreen' ? 'MENOR PREÇO' : 'MELHOR VALOR'}</span>` : ''}
         <div class="product-info">
           ${productImage}
           <div class="product-copy">
             <p class="product-brand">${escapeHtml(product.brand)}${product.store ? ` · ${escapeHtml(product.store)}` : ''}</p>
             <h3 class="product-name">${escapeHtml(product.name)}</h3>
             ${productLink}
-            ${activeCategory === 'whey' ? `<div class="nutrition-actions">
+            ${activeCategory === 'creatine' ? creatineDetails(product, productIndex) : activeCategory === 'whey' ? `<div class="nutrition-actions">
               <button class="nutrition-info-button${warnings['carb-protein'] ? ` warning-level-${warnings['carb-protein'].level}` : ''}" type="button" data-nutrition-detail="carb-protein" data-product-index="${productIndex}" aria-haspopup="dialog">
                 <span>${warningMark('carb-protein')}Carbo/proteína</span><strong>${ratio}</strong>
               </button>
@@ -473,14 +604,16 @@ function renderProducts() {
               <button class="nutrition-info-button${warnings['saturated-fat'] ? ` warning-level-${warnings['saturated-fat'].level}` : ''}" type="button" data-nutrition-detail="saturated-fat" data-product-index="${productIndex}" aria-haspopup="dialog">
                 <span>${warningMark('saturated-fat')}Gordura saturada</span><strong>${saturatedFatSummary}</strong>
               </button>
-            </div>` : `<p class="product-meta">FPS ${Number.isFinite(product.spf) ? product.spf : 'sem dado'} <span>·</span> ${escapeHtml(product.type)}${product.texture ? ` <span>·</span> ${escapeHtml(product.texture)}` : ''}</p>${featureLine(product)}${reviewSummary(product)}
+            </div>${labelLine(product)}
+            ${product.ingredients || product.allergens ? `<button class="details-button" type="button" data-whey-label data-product-index="${productIndex}" aria-haspopup="dialog">Rótulo</button>` : ''}` : `<p class="product-meta">FPS ${Number.isFinite(product.spf) ? product.spf : 'sem dado'} <span>·</span> ${escapeHtml(product.type)}${product.texture ? ` <span>·</span> ${escapeHtml(product.texture)}` : ''}</p>${featureLine(product)}${reviewSummary(product)}
             <button class="details-button" type="button" data-sunscreen-details data-product-index="${productIndex}" aria-haspopup="dialog">Características</button>`}
           </div>
         </div>
         <div class="price-block">
           <div class="unit-price">${Number.isFinite(product.unitPrice) ? currency.format(product.unitPrice) : '—'}</div>
-          <div class="unit-caption"${product.nutritionDataSource === 'product image OCR' ? ' title="O peso da porção ou a proteína foi lido automaticamente da imagem do produto."' : ''}>${Number.isFinite(product.unitPrice) ? `por ${unitLabel}${product.paymentCondition ? ` · ${escapeHtml(product.paymentCondition)}` : ''}${product.nutritionDataSource === 'product image OCR' ? ' · imagem' : ''}` : (activeCategory === 'whey' ? 'sem dado de proteína' : `por ${unitLabel}`)}</div>
+          <div class="unit-caption"${product.nutritionDataSource === 'product image OCR' ? ' title="O peso da porção ou a proteína foi lido automaticamente da imagem do produto."' : ''}>${Number.isFinite(product.unitPrice) ? `por ${unitLabel}${product.paymentCondition ? ` · ${escapeHtml(product.paymentCondition)}` : ''}${product.nutritionDataSource === 'product image OCR' ? ' · imagem' : ''}` : `por ${unitLabel}`}</div>
           <div class="package-price"><span>${formatAmount(product)}</span><strong>${currency.format(product.price)}</strong></div>
+          <label class="compare-toggle"><input type="checkbox" data-compare="${escapeHtml(compareKey(product))}"${compareSelection.includes(compareKey(product)) ? ' checked' : ''}> Comparar</label>
         </div>
       </article>`;
   }).join('');
@@ -493,14 +626,12 @@ async function loadCatalog() {
     const response = await fetch('./data/products.json', { cache: 'no-store' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const catalog = await response.json();
-    products = {
-      whey: Array.isArray(catalog.products?.whey)
-        ? catalog.products.whey.filter((product) => isDirectProductUrl(product.url))
-        : [],
-      sunscreen: Array.isArray(catalog.products?.sunscreen)
-        ? catalog.products.sunscreen.filter((product) => isDirectProductUrl(product.url))
-        : [],
-    };
+    // Products without a price per quantity (no protein or creatine data)
+    // can't be compared, so they are not shown. They stay in the catalog in
+    // case a later update reads their data.
+    const comparable = (category) => (Array.isArray(catalog.products?.[category]) ? catalog.products[category] : [])
+      .filter((product) => isDirectProductUrl(product.url) && Number.isFinite(getUnitPrice(product, category)));
+    products = { whey: comparable('whey'), sunscreen: comparable('sunscreen'), creatine: comparable('creatine') };
     if (catalog.updatedAt) {
       document.querySelector('#footer-updated').textContent = `em ${new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long' }).format(new Date(catalog.updatedAt))}`;
     }
@@ -527,13 +658,47 @@ categoryButtons.forEach((button) => {
       item.setAttribute('aria-pressed', String(selected));
     });
     guideButton.hidden = activeCategory !== 'sunscreen';
+    compareSelection = [];
+    renderCompareBar();
     renderFilters();
     renderProducts();
   });
 });
 
-filterControls.addEventListener('change', renderProducts);
+filterControls.addEventListener('change', () => {
+  updateFilterSummaries();
+  renderProducts();
+});
+// Only one dropdown stays open; a click outside or Escape closes it.
+filterControls.addEventListener('toggle', (event) => {
+  event.target.querySelectorAll?.('[data-filter-help]').forEach((button) => button.setAttribute('aria-expanded', 'false'));
+  if (!event.target.open) return;
+  filterControls.querySelectorAll('[data-filter-menu][open]').forEach((menu) => { if (menu !== event.target) menu.open = false; });
+}, true);
+document.addEventListener('click', (event) => {
+  filterControls.querySelectorAll('[data-filter-menu][open]').forEach((menu) => { if (!menu.contains(event.target)) menu.open = false; });
+});
+filterControls.addEventListener('keydown', (event) => {
+  const menu = event.target.closest('[data-filter-menu][open]');
+  if (event.key !== 'Escape' || !menu) return;
+  menu.open = false;
+  menu.querySelector('summary').focus();
+});
 filterControls.addEventListener('click', (event) => {
+  const info = event.target.closest('[data-filter-help]');
+  if (info) {
+    const open = info.getAttribute('aria-expanded') !== 'true';
+    filterControls.querySelectorAll('[data-filter-help]').forEach((button) => button.setAttribute('aria-expanded', 'false'));
+    info.setAttribute('aria-expanded', String(open));
+    return;
+  }
+  const clear = event.target.closest('[data-filter-clear]');
+  if (clear) {
+    clear.closest('[data-filter-menu]').querySelectorAll('input:checked').forEach((input) => { input.checked = false; });
+    updateFilterSummaries();
+    renderProducts();
+    return;
+  }
   const button = event.target.closest('[data-sort-key]');
   if (!button) return;
   const key = button.dataset.sortKey;
@@ -547,7 +712,7 @@ filterControls.addEventListener('click', (event) => {
   renderProducts();
 });
 productGrid.addEventListener('click', (event) => {
-  const button = event.target.closest('[data-nutrition-detail], [data-sunscreen-details]');
+  const button = event.target.closest('[data-nutrition-detail], [data-sunscreen-details], [data-whey-label]');
   if (!button) return;
   const product = visibleProducts[Number(button.dataset.productIndex)];
   if (!product) return;
@@ -556,6 +721,10 @@ productGrid.addEventListener('click', (event) => {
     nutritionDialogEyebrow.textContent = 'PROTETOR SOLAR';
     nutritionDialogTitle.textContent = 'Detalhes';
     nutritionDialogContent.innerHTML = renderSunscreenDialog(product);
+  } else if (button.matches('[data-whey-label]')) {
+    nutritionDialogEyebrow.textContent = activeCategory === 'creatine' ? 'CREATINA' : 'WHEY PROTEIN';
+    nutritionDialogTitle.textContent = 'Rótulo';
+    nutritionDialogContent.innerHTML = renderLabelDialog(product);
   } else {
     nutritionDialogEyebrow.textContent = 'DETALHES NUTRICIONAIS';
     nutritionDialogContent.innerHTML = renderNutritionDialog(product, button.dataset.nutritionDetail);
@@ -573,3 +742,149 @@ guideDialog.addEventListener('click', (event) => {
 });
 renderFilters();
 loadCatalog();
+
+// Compare two products side by side. The selection keeps working across
+// filters and is cleared when the category changes.
+const MAX_COMPARE = 2;
+const compareBar = document.querySelector('#compare-bar');
+const compareDialog = document.querySelector('#compare-dialog');
+const compareDialogContent = document.querySelector('#compare-dialog-content');
+let compareSelection = [];
+let compareHint = '';
+
+// Sizes sold on one page share its address, so the key adds size and name.
+function compareKey(product) {
+  return `${product.url}|${product.amount}${product.unit}|${product.name}`;
+}
+
+const selectedForCompare = () => compareSelection
+  .map((key) => products[activeCategory].find((product) => compareKey(product) === key)).filter(Boolean);
+
+function renderCompareBar() {
+  const selected = selectedForCompare();
+  compareBar.hidden = selected.length === 0;
+  if (!selected.length) return;
+  const chips = selected.map((product) => `<span class="compare-chip"><span>${escapeHtml(product.name)}</span><button type="button" data-compare-remove="${escapeHtml(compareKey(product))}" aria-label="Tirar ${escapeHtml(product.name)} da comparação">✕</button></span>`).join('');
+  const hint = compareHint || (selected.length < MAX_COMPARE ? 'Escolha mais 1 produto' : '');
+  compareBar.innerHTML = `<div class="compare-bar-inner">
+    <div class="compare-chips">${chips}${hint ? `<span class="compare-hint">${escapeHtml(hint)}</span>` : ''}</div>
+    <div class="compare-actions"><button class="compare-clear" type="button" data-compare-clear>Limpar</button>
+    <button class="compare-open" type="button" data-compare-open${selected.length < MAX_COMPARE ? ' disabled' : ''}>Comparar</button></div>
+  </div>`;
+}
+
+const plainNumber = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
+const percentOf = (part, whole) => (part > 0 && whole > 0 ? (part / whole) * 100 : null);
+const labelAnswer = (value) => LABEL_ANSWERS[value] || '';
+const yesNo = (product, feature) => (feature.test(product) ? 'Sim' : catalogSays(product, feature.attribute) === 'Não' ? 'Não' : '');
+
+// Each row: label, value(product) for picking the better one (lower or
+// higher wins; none means just shown), and text(product) for the cell.
+function compareRows(category, items) {
+  const unitLabel = (product) => getUnitLabel(category, product);
+  const common = [
+    { label: 'Preço por quantidade', value: (product) => getUnitPrice(product, category), better: 'low',
+      text: (product) => `${currency.format(getUnitPrice(product, category))} por ${unitLabel(product)}` },
+    { label: 'Preço', value: (product) => product.price, text: (product) => `${currency.format(product.price)} (${formatAmount(product)})` },
+    { label: 'Tipo', text: (product) => product.type },
+  ];
+  if (category === 'whey') {
+    return [...common,
+      { label: 'Proteína por dose', value: proteinPer100g, better: 'high',
+        text: (product) => `${plainNumber.format(product.proteinGrams)} g em ${plainNumber.format(proteinServingMass(product))} g (${plainNumber.format(proteinPer100g(product))}%)` },
+      { label: 'Carbo/proteína', value: (product) => product.carbProteinRatio, better: 'low', text: (product) => formatRatio(product.carbProteinRatio) },
+      { label: 'Gordura saturada', value: (product) => saturatedFatPer100g(product.nutritionDetails), better: 'low',
+        text: (product) => `${formatNutritionAmount(saturatedFatPer100g(product.nutritionDetails))} g/100 g` },
+      { label: 'Energia', value: (product) => product.nutritionDetails?.energyKcalPer100g,
+        text: (product) => `${formatNutritionAmount(product.nutritionDetails.energyKcalPer100g)} kcal/100 g` },
+      { label: 'Aminoácidos essenciais', text: (product) => (product.nutritionDetails?.aminoAcids?.essential?.length ? `${product.nutritionDetails.aminoAcids.essential.length} listados` : '') },
+      { label: 'Glúten', text: (product) => labelAnswer(product.gluten) },
+      { label: 'Lactose', text: (product) => labelAnswer(product.lactose) },
+      { label: 'Contém', text: (product) => allergenNames(product.allergens?.contains) },
+    ];
+  }
+  if (category === 'creatine') {
+    return [...common,
+      { label: `Dose de ${CREATINE_DOSE_GRAMS} g`, value: creatineUnitPrice, better: 'low',
+        text: (product) => currency.format((creatineUnitPrice(product) / 100) * CREATINE_DOSE_GRAMS) },
+      { label: 'Teor de creatina', value: (product) => product.creatineShare, better: 'high',
+        text: (product) => `${plainNumber.format(product.creatineShare * 100)}%` },
+    ];
+  }
+  // Prices per ml and per g can't be ranked against each other.
+  const sameMeasure = new Set(items.map(sunscreenMeasure)).size === 1;
+  return [
+    { ...common[0], better: sameMeasure ? 'low' : undefined },
+    common[1], common[2],
+    { label: 'FPS', value: (product) => product.spf, better: 'high', text: (product) => String(product.spf) },
+    { label: 'Textura', text: (product) => product.texture || catalogSays(product, 'TEXTURE') },
+    ...FEATURES.filter((feature) => feature.attribute).map((feature) => ({ label: feature.label, text: (product) => yesNo(product, feature) })),
+    { label: 'Nota na loja', value: (product) => product.reviews?.average, better: 'high',
+      text: (product) => (product.reviews?.count ? `${rating.format(product.reviews.average)} ★ (${product.reviews.count.toLocaleString('pt-BR')})` : '') },
+    ...REVIEW_TRAITS.map(({ key, complaint, praise, yesIsPraise }) => ({
+      label: `${yesIsPraise ? praise : complaint}?`,
+      text: (product) => {
+        const { yes = 0, no = 0 } = product.reviews?.mentions?.[key] || {};
+        return yes || no ? `Sim: ${yes} · Não: ${no}` : '';
+      },
+    })),
+  ];
+}
+
+function renderCompareDialog(items) {
+  const header = `<div class="compare-row compare-head"><div class="compare-label"></div>${items.map((product) => `
+    <div class="compare-cell">
+      ${product.image ? `<img src="${escapeHtml(product.image)}" alt="" width="56" height="56" loading="lazy">` : ''}
+      <p class="product-brand">${escapeHtml(product.brand)}${product.store ? ` · ${escapeHtml(product.store)}` : ''}</p>
+      <p class="compare-name">${escapeHtml(product.name)}</p>
+      <a class="product-link" href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer">Ver produto ↗</a>
+    </div>`).join('')}</div>`;
+  const rows = compareRows(activeCategory, items).map((row) => {
+    const texts = items.map((product) => {
+      try { return row.text(product) || ''; } catch { return ''; }
+    });
+    if (texts.every((text) => !text)) return '';
+    const values = items.map((product) => (row.value ? row.value(product) : null));
+    let best = -1;
+    if (row.better && values.every(Number.isFinite) && values[0] !== values[1]) {
+      best = row.better === 'low' ? (values[0] < values[1] ? 0 : 1) : (values[0] > values[1] ? 0 : 1);
+    }
+    return `<div class="compare-row"><div class="compare-label">${escapeHtml(row.label)}</div>${texts.map((text, index) => `
+      <div class="compare-cell${index === best ? ' compare-better' : ''}${text ? '' : ' details-missing'}">${index === best ? '<span class="compare-check" aria-label="Melhor">✓</span> ' : ''}${escapeHtml(text || 'Sem dado')}</div>`).join('')}</div>`;
+  }).join('');
+  return `${header}<div class="compare-table">${rows}</div>
+    <p class="nutrition-modal-note">✓ marca o melhor valor em cada linha. Dados das lojas e dos rótulos; confira na embalagem.</p>`;
+}
+
+productGrid.addEventListener('change', (event) => {
+  const checkbox = event.target.closest('[data-compare]');
+  if (!checkbox) return;
+  const key = checkbox.dataset.compare;
+  compareHint = '';
+  if (!checkbox.checked) compareSelection = compareSelection.filter((item) => item !== key);
+  else if (compareSelection.length >= MAX_COMPARE) {
+    checkbox.checked = false;
+    compareHint = `Máximo ${MAX_COMPARE} produtos. Tire um para escolher outro.`;
+  } else compareSelection = [...compareSelection, key];
+  renderCompareBar();
+});
+
+compareBar.addEventListener('click', (event) => {
+  const remove = event.target.closest('[data-compare-remove]');
+  if (remove || event.target.closest('[data-compare-clear]')) {
+    compareSelection = remove ? compareSelection.filter((key) => key !== remove.dataset.compareRemove) : [];
+    compareHint = '';
+    productGrid.querySelectorAll('[data-compare]').forEach((checkbox) => { checkbox.checked = compareSelection.includes(checkbox.dataset.compare); });
+    renderCompareBar();
+    return;
+  }
+  if (!event.target.closest('[data-compare-open]')) return;
+  const items = selectedForCompare();
+  if (items.length < MAX_COMPARE) return;
+  compareDialogContent.innerHTML = renderCompareDialog(items);
+  compareDialog.showModal();
+});
+document.querySelector('#compare-dialog-close').addEventListener('click', () => compareDialog.close());
+compareDialog.addEventListener('click', (event) => {
+  if (event.target === compareDialog) compareDialog.close();
+});

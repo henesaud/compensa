@@ -10,7 +10,7 @@
     <meta property="og:locale" content="pt_BR">
     <meta property="og:site_name" content="Compensa?">
     <meta property="og:title" content="Compensa? — compare preços">
-    <meta property="og:description" content="Compare whey protein e protetor solar pelo preço por quantidade e encontre o melhor custo-benefício.">
+    <meta property="og:description" content="Compare whey protein, creatina e protetor solar pelo preço por quantidade e encontre o melhor custo-benefício.">
     <meta property="og:image" content="/og-image.png">
     <meta name="twitter:card" content="summary_large_image">
     <link rel="canonical" href="https://compensaprecos.com.br/">
@@ -46,8 +46,8 @@
         });
       })();
     </script>
-    <link rel="stylesheet" href="styles.css?v=27">
-    <script src="script.js?v=24" defer></script>
+    <link rel="stylesheet" href="styles.css?v=34">
+    <script src="script.js?v=35" defer></script>
   </head>
   <body>
     <header class="site-header">
@@ -71,6 +71,7 @@
         <div class="category-tabs" role="group" aria-label="Escolha uma categoria">
           <button class="category-button is-active" type="button" data-category="whey" aria-pressed="true">Whey protein</button>
           <button class="category-button" type="button" data-category="sunscreen" aria-pressed="false">Protetor solar</button>
+          <button class="category-button" type="button" data-category="creatine" aria-pressed="false">Creatina</button>
         </div>
 
         <div class="filter-panel">
@@ -109,6 +110,17 @@
       <p class="footer-legal">Compensa? não tem vínculo com as marcas ou lojas listadas. As marcas pertencem aos seus donos.</p>
     </footer>
 
+    <div class="compare-bar" id="compare-bar" role="region" aria-label="Comparação" hidden></div>
+    <dialog class="nutrition-dialog compare-dialog" id="compare-dialog" aria-labelledby="compare-dialog-title">
+      <div class="nutrition-dialog-heading">
+        <div>
+          <p class="eyebrow">COMPARAÇÃO</p>
+          <h2 id="compare-dialog-title">Lado a lado</h2>
+        </div>
+        <button class="nutrition-dialog-close" id="compare-dialog-close" type="button" aria-label="Fechar">×</button>
+      </div>
+      <div id="compare-dialog-content"></div>
+    </dialog>
     <dialog class="nutrition-dialog" id="nutrition-dialog" aria-labelledby="nutrition-dialog-title">
       <div class="nutrition-dialog-heading">
         <div>

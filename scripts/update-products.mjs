@@ -9,6 +9,10 @@ import { fetchCatalogProduct, mercadoLivreToken, searchCatalogProduct } from './
 import { productThumbnail } from './product-image.mjs';
 import { compareProducts, shrinkage } from './update-checks.mjs';
 import { fatDetails } from './nutrition-table.mjs';
+import { labelInfo } from './whey-label.mjs';
+import { fetchVtexSupplements } from './vtex-supplements.mjs';
+import { fetchShopifySupplements } from './shopify-supplements.mjs';
+import { creatineShareFromText, matchesCategory } from './supplement-rules.mjs';
 import { agreeingReading, hasSaturatedFat, mergeMissingRows, ocrNutritionTable, sameReading, parseOcrNutritionTable, summarizeOcrNutrition, validateOcrNutrition } from './nutrition-ocr.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -18,11 +22,13 @@ const sources = [
     brand: 'Growth Supplements',
     origin: 'https://www.gsuplementos.com.br',
     searchUrl: 'https://www.gsuplementos.com.br/busca?busca=whey',
+    creatine: { searchUrl: 'https://www.gsuplementos.com.br/busca?busca=creatina' },
   },
   {
     brand: 'Max Titanium',
     origin: 'https://www.maxtitanium.com.br',
     searchUrl: 'https://www.maxtitanium.com.br/Produtos/Proteinas',
+    creatine: { vtex: true },
   },
   {
     brand: 'Essential Nutrition',
@@ -32,6 +38,43 @@ const sources = [
       'https://www.essentialnutrition.com.br/produtos/proteinas/whey?p=2&product_list_dir=desc&product_list_order=name',
       'https://www.essentialnutrition.com.br/produtos/proteinas/whey?p=3&product_list_dir=desc&product_list_order=name',
     ],
+  },
+  // `creatine` also reads the store's creatine: true for API stores, or the
+  // settings that differ (a search page, the API) for the others. Stores with
+  // `whey: false` only sell creatine here (their whey pages have no readable
+  // nutrition table, which creatine can do without).
+  // Brand stores on VTEX, read through the catalog API (scripts/vtex-supplements.mjs).
+  { brand: 'Probiótica', origin: 'https://www.probiotica.com.br', vtex: true, creatine: true },
+  { brand: 'Nutrify', origin: 'https://www.nutrify.com.br', vtex: true, creatine: true },
+  { brand: 'Vitafor', origin: 'https://www.vitafor.com.br', vtex: true, whey: false, creatine: true },
+  { brand: 'Atlhetica Nutrition', origin: 'https://www.atlheticanutrition.com.br', vtex: true, whey: false, creatine: true },
+  { brand: 'Black Skull', origin: 'https://www.blackskullusa.com.br', vtex: true, whey: false, creatine: true },
+  // Brand stores on Shopify, read through /products.json (scripts/shopify-supplements.mjs).
+  { brand: 'True Source', origin: 'https://vivatrue.com.br', shopify: true, creatine: true },
+  { brand: 'Soldiers Nutrition', origin: 'https://soldiersnutrition.com.br', shopify: true, creatine: true },
+  { brand: 'Dark Lab', origin: 'https://darklabsuplementos.com.br', shopify: true, whey: false, creatine: true },
+  { brand: 'FTW', origin: 'https://ftw.com.br', shopify: true, whey: false, creatine: true },
+  // Other stores, read from the listing page; productPath tells product pages apart.
+  {
+    brand: 'Dux',
+    origin: 'https://duxhumanhealth.com',
+    searchUrl: 'https://duxhumanhealth.com/proteinas/',
+    productPath: /^\/produtos\/[^/]+\/?$/,
+    creatine: { searchUrl: 'https://duxhumanhealth.com/search/?q=creatina' },
+  },
+  {
+    brand: 'Adaptogen',
+    origin: 'https://www.adaptogen.com.br',
+    searchUrl: 'https://www.adaptogen.com.br/proteinas/whey-protein',
+    productPath: /^\/produto\/[^/]+$/,
+    creatine: { searchUrl: 'https://www.adaptogen.com.br/busca?q=creatina' },
+  },
+  {
+    brand: 'New Nutrition',
+    origin: 'https://www.newnutrition.com.br',
+    searchUrl: 'https://www.newnutrition.com.br/proteinas/whey-protein/',
+    productPath: /^\/[^/]+\/p$/,
+    creatine: { searchUrl: 'https://www.newnutrition.com.br/busca?q=creatina' },
   },
   {
     brand: 'Loja do Mecânico',
@@ -47,15 +90,24 @@ const sourceOnly = sourceOnlyIndex >= 0 ? process.argv[sourceOnlyIndex + 1] : nu
 function parsePrice(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   if (!value) return null;
+  // Structured data writes prices as "213.90"; pages write "R$ 1.213,90".
+  if (/^\s*\d+\.\d{1,2}\s*$/.test(String(value))) return Number(value);
   const normalized = String(value).replace(/[^\d.,]/g, '').replace(/\./g, '').replace(',', '.');
   const price = Number(normalized);
   return Number.isFinite(price) && price > 0 ? price : null;
 }
 
 function parseAmount(name, category) {
-  const pattern = category === 'whey' ? /(\d+(?:[.,]\d+)?)\s*(kg|g)\b/i : /(\d+(?:[.,]\d+)?)\s*(ml|g|l(?:itros?)?)\b/i;
+  const supplement = category !== 'sunscreen';
+  const pattern = supplement ? /(\d+(?:[.,]\d+)?)\s*(kg|g)\b/i : /(\d+(?:[.,]\d+)?)\s*(ml|g|l(?:itros?)?)\b(?!['’])/i; // "FPS 70 L'Oréal" is not 70 liters
   const text = String(name);
-  const totalMatch = category === 'whey' ? text.match(/(\d+(?:[.,]\d+)?)\s*(kg|g)\s*(?:total|no total)/i) : null;
+  const totalMatch = supplement ? text.match(/(\d+(?:[.,]\d+)?)\s*(kg|g)\s*(?:total|no total)/i) : null;
+  // "12 sachês de 34g" is the size of one sachet.
+  const sachets = supplement && !totalMatch ? text.match(/\b(\d+)\s*sach[êe]s\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*g\b/i) : null;
+  if (sachets) return { amount: Number(sachets[1]) * Number(sachets[2].replace(',', '.')), unit: 'g' };
+  // "Sachês 5g - 30Un": the size of one sachet and the count.
+  const units = supplement && !totalMatch ? text.match(/(\d+(?:[.,]\d+)?)\s*g\b[^\d]{0,15}(\d+)\s*un\b/i) : null;
+  if (units) return { amount: Number(units[1].replace(',', '.')) * Number(units[2]), unit: 'g' };
   const match = totalMatch || text.match(pattern);
   if (!match) {
     const doseCount = category === 'whey' ? text.match(/\b(\d+)\s*(?:doses?|sach[eê]s?)\b/i) : null;
@@ -70,6 +122,7 @@ function parseAmount(name, category) {
 
 function productType(name, category) {
   const normalized = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (category === 'creatine') return /creapure/.test(normalized) ? 'Creapure' : 'Monohidratada';
   if (category === 'whey') {
     if (/\bblend\b|\b3w\b|\b2w\b|whey.*egg|egg.*whey/.test(normalized)) return 'Blend';
     if (/hidrolis/.test(normalized)) return 'Hidrolisado';
@@ -94,14 +147,18 @@ function toProduct(raw, category, source) {
   const name = String(raw.name || '').replace(/\s+/g, ' ').trim();
   const normalizedName = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   if (category === 'whey' && !normalizedName.includes('whey')) return null;
+  if (category === 'creatine' && !matchesCategory(name, 'creatine')) return null;
   if (category === 'sunscreen' && (!(source.vtex || /nutriex/i.test(raw.brand || source.productBrand || source.brand)) || !parseSpf(name))) return null;
   const amount = parseAmount(name, category) || parseAmount(raw.text || '', category);
   const price = parsePrice(raw.price);
   if (!name || !amount || !price) return null;
 
-  const brand = String(raw.brand || source.productBrand || source.brand).trim();
+  // Whey stores sell their own brand; pages sometimes name the company instead.
+  const brand = String(category !== 'sunscreen' ? source.brand : raw.brand || source.productBrand || source.brand).trim();
   const url = isDirectProductUrl(raw.url, source) ? raw.url : undefined;
-  if (category === 'whey' && url && !new URL(url).pathname.toLowerCase().includes('whey')) return null;
+  // Store APIs only return whey listings already; scraped pages can link elsewhere.
+  const pathWord = { whey: 'whey', creatine: 'creatin' }[category];
+  if (pathWord && url && !source.vtex && !source.shopify && !new URL(url).pathname.toLowerCase().includes(pathWord)) return null;
   const product = {
     brand,
     name,
@@ -139,6 +196,88 @@ function keepPreviousReviews(sunscreens, previous) {
 // Copies the Mercado Livre catalog attributes onto sunscreens, found by
 // barcode or, for stores without one, by name.
 // Without credentials (or if the API fails) the previous run's data is kept.
+// Creatine per serving, from the nutrition table ("Creatina 3 g" in a 3 g
+// serving); otherwise from the ingredient list or name (supplement-rules.mjs).
+function creatineContent(product, nutrition, label) {
+  const row = nutrition.nutritionTable?.rows?.find((candidate) => /^creatina\b/i.test(candidate.label || ''));
+  const creatineGrams = Number(String(row?.cells?.[1] || '').match(/\d+(?:[.,]\d+)?/)?.[0]?.replace(',', '.'));
+  const servingMassGrams = nutritionDetails(nutrition.nutritionTable)?.servingMassGrams;
+  if (creatineGrams > 0 && servingMassGrams >= creatineGrams * 0.95) {
+    return { creatinePerServingGrams: creatineGrams, servingMassGrams, creatineShare: Math.min(creatineGrams / servingMassGrams, 1), creatineSource: 'table' };
+  }
+  // The page address often names the product better ("creatina-300g-monohidratada").
+  return creatineShareFromText(`${product.name} ${new URL(product.url).pathname.replace(/[-/]/g, ' ')}`, label.ingredients);
+}
+
+// Lists creatine from the stores with `creatine` set and reads each product
+// page for the nutrition table and label. Like whey, a store that fails keeps
+// its previous products.
+async function refreshCreatine(page, previousCatalog, problems, refreshSource) {
+  const selected = sources.filter((source) => source.creatine && (!sourceOnly || source.brand.toLowerCase() === sourceOnly.toLowerCase()));
+  if (sourceOnly && !selected.length) return previousCatalog;
+  const products = new Map();
+  for (const base of selected) {
+    const source = { ...base, ...(typeof base.creatine === 'object' ? base.creatine : {}) };
+    const previous = previousCatalog.filter((product) => product.brand === source.brand);
+    const result = await refreshSource(`${source.brand} (creatina)`, previous, async () => {
+      if (source.vtex || source.shopify) {
+        const listings = source.vtex ? await fetchVtexSupplements(source, 'creatine') : await fetchShopifySupplements(source, 'creatine');
+        return listings.map((raw) => toProduct(raw, 'creatine', source)).filter((product) => product?.url);
+      }
+      return scrapeSearch(page, source, 'creatine');
+    });
+    // Under R$ 4 per 100 g is far below any real creatine; the listing page
+    // paired the name with another price.
+    const misread = result.products.filter((product) => (product.price / product.amount) * (product.unit === 'kg' ? 0.1 : 100) < 4);
+    misread.forEach((product) => console.warn(`Skipped creatine with an implausible price: ${product.name} (R$ ${product.price})`));
+    result.products = result.products.filter((product) => !misread.includes(product));
+    console.log(`Found ${result.kept ? 0 : result.products.length} creatine listings from ${source.brand}.`);
+    for (const product of result.products) {
+      const identity = `${product.brand}:${product.name.toLowerCase()}:${product.amount}${product.unit}`;
+      if (!products.has(identity)) products.set(identity, { ...product, kept: result.kept });
+    }
+  }
+  const previousByUrl = new Map(previousCatalog.map((product) => [product.url, product]));
+  for (const product of products.values()) {
+    if (product.kept) continue;
+    const nutrition = await scrapeNutrition(page, product.url);
+    if (!product.imageUrl && nutrition.productImageUrl) product.imageUrl = nutrition.productImageUrl;
+    const label = labelInfo(nutrition.pageText);
+    addLabel(product, label, previousByUrl.get(product.url));
+    Object.assign(product, creatineContent(product, nutrition, label));
+    if (product.creatineShare === null && previousByUrl.get(product.url)?.creatineShare) {
+      Object.assign(product, { creatineShare: previousByUrl.get(product.url).creatineShare, creatineSource: previousByUrl.get(product.url).creatineSource });
+    }
+    if (product.creatineShare === null) console.warn(`Creatine content not found for: ${product.name}`);
+  }
+  const refreshed = [...products.values()].map(({ kept, ...product }) => product);
+  const others = sourceOnly ? previousCatalog.filter((product) => !selected.some((source) => source.brand === product.brand)) : [];
+  return [...others, ...refreshed];
+}
+
+// Reading a label image (OCR) can fail on one run and work on the next, so a
+// failed read keeps the previous run's nutrition instead of erasing it.
+const NUTRITION_FIELDS = ['carbohydrateGrams', 'proteinGrams', 'nutritionTable', 'nutritionDetails', 'carbProteinRatio',
+  'nutritionDataSource', 'nutritionOcrConfidence', 'nutritionImageUrl', 'nutritionOcrVerified'];
+function keepPreviousNutrition(product, previous) {
+  if (!Number.isFinite(previous?.carbProteinRatio)) return false;
+  for (const field of NUTRITION_FIELDS) {
+    if (previous[field] !== undefined) product[field] = previous[field];
+  }
+  return true;
+}
+
+// Ingredients, allergens, gluten and lactose from the label text on the
+// product page. A page that fails to load keeps the previous run's data.
+const LABEL_FIELDS = ['ingredients', 'allergens', 'gluten', 'lactose'];
+function addLabel(product, label, previous) {
+  const found = label.ingredients || label.gluten || label.lactose || label.allergens.contains.length;
+  for (const field of LABEL_FIELDS) {
+    const value = found ? label[field] : previous?.[field];
+    if (value !== undefined) product[field] = value;
+  }
+}
+
 async function addMercadoLivreData(sunscreens, previous) {
   const previousByUrl = new Map(previous.map((product) => [product.url, product.mercadoLivre]));
   let token = null;
@@ -176,6 +315,8 @@ function isDirectProductUrl(value, source) {
     if (source.brand === 'Max Titanium') return /\/p$/i.test(url.pathname);
     if (source.brand === 'Essential Nutrition') return /^\/[^/]*whey[^/]*\/?$/i.test(url.pathname);
     if (source.vtex) return /\/p$/i.test(url.pathname);
+    if (source.shopify) return /^\/products\/[^/]+$/.test(url.pathname);
+    if (source.productPath) return source.productPath.test(url.pathname);
     if (source.brand === 'Loja do Mecânico') return /^\/produto\/\d+\//.test(url.pathname);
     return false;
   } catch {
@@ -310,7 +451,10 @@ async function scrapeSearch(page, source, category) {
 
   if (source.brand === 'Essential Nutrition') return scrapeEssentialSearch(page, source, category);
 
-  const extracted = await page.evaluate((brand) => {
+  // Cards count when a heading names the product kind ("whey", "creatina").
+  const keyword = category === 'creatine' ? 'creatin' : 'whey';
+  const extracted = await page.evaluate(({ brand, keyword }) => {
+    const named = (value) => tokens(value).some((token) => token.startsWith(keyword));
     const output = [];
     const seen = new Set();
     const absoluteUrl = (value) => {
@@ -331,7 +475,7 @@ async function scrapeSearch(page, source, category) {
       try {
         const url = new URL(value, location.href);
         if (url.origin !== location.origin) return false;
-        if (/(?:-p\d+|\/produto\/|\/product\/|\/p(?:$|\?)|\/products\/[^/?#]+)/i.test(url.href)) return true;
+        if (/(?:-p\d+|\/produtos?\/|\/product\/|\/p(?:$|\?)|\/products\/[^/?#]+)/i.test(url.href)) return true;
         return brand === 'Essential Nutrition' && /^\/[^/]*whey[^/]*\/?$/i.test(url.pathname);
       } catch { return false; }
     };
@@ -417,8 +561,8 @@ async function scrapeSearch(page, source, category) {
         || bestCard.querySelector('img')?.getAttribute('data-lazy-src')
         || bestCard.querySelector('img')?.src
         || '');
-      const name = headings.find((value) => tokens(value).includes('whey') && /\d+(?:[.,]\d+)?\s*(?:kg|g)\b/i.test(value))
-        || headings.find((value) => tokens(value).includes('whey'))
+      const name = headings.find((value) => named(value) && /\d+(?:[.,]\d+)?\s*(?:kg|g)\b/i.test(value))
+        || headings.find(named)
         || anchor.innerText.trim()
         || imageAlt;
       const productLinks = [...bestCard.querySelectorAll('a[href]')]
@@ -427,7 +571,7 @@ async function scrapeSearch(page, source, category) {
       const bestLink = productLinks
         .map((link) => ({ ...link, score: linkScore(name, link) }))
         .sort((a, b) => b.score - a.score)[0];
-      if (!tokens(name).includes('whey') || !bestLink || bestLink.score < 2) continue;
+      if (!named(name) || !bestLink || bestLink.score < 2) continue;
       const priceMatches = [...text.matchAll(/R\$\s*([\d.]+,\d{2})/gi)];
       const nonInstallmentPrices = priceMatches.filter((match) => {
         const before = text.slice(Math.max(0, match.index - 16), match.index);
@@ -442,7 +586,7 @@ async function scrapeSearch(page, source, category) {
       if (name && price) output.push({ name, text, price, url: bestLink.url, imageUrl, brand });
     }
     return output;
-  }, source.brand);
+  }, { brand: source.brand, keyword });
 
   const products = new Map();
   let withoutDirectLink = 0;
@@ -608,12 +752,13 @@ async function scrapeNutrition(page, productUrl) {
         productImageUrl,
         nutritionImageUrls: [...imageCandidates.entries()].filter(([, score]) => score >= 4)
           .sort((a, b) => b[1] - a[1]).slice(0, 6).map(([url]) => url),
+        pageText: document.body?.innerText || '',
       };
     });
     return result;
   } catch (error) {
     console.warn(`Could not read nutrition facts from ${productUrl}: ${error.message}`);
-    return { carbohydrateGrams: null, proteinGrams: null, nutritionTable: null, productImageUrl: null, nutritionImageUrls: [] };
+    return { carbohydrateGrams: null, proteinGrams: null, nutritionTable: null, productImageUrl: null, nutritionImageUrls: [], pageText: '' };
   }
 }
 
@@ -752,8 +897,12 @@ function nutritionDetails(table) {
   const energyRow = table.rows.find((row) => /valor energetico/i.test(normalize(row.label || row.text)));
   const energyKcalPerServing = parseAmount(energyRow?.cells?.[1] || energyRow?.text);
   const portionRow = table.rows.find((row) => /^\s*por[cç][aã]o\b/i.test(row.label || row.text || ''));
+  // Some tables only give the serving in the column header ("Por 29 g", "30g").
+  const headerCell = table.rows.slice(0, Math.max(table.rows.indexOf(energyRow), 1)).flatMap((row) => row.cells || [])
+    .find((cell) => /^\s*(?:por\s+)?\d+(?:[.,]\d+)?\s*g\b/i.test(cell));
   const servingMassGrams = parseAmount((portionRow?.label || portionRow?.text || '').match(/\d+(?:[.,]\d+)?\s*g\b/i)?.[0])
-    || parseAmount(table.servingSize?.match(/\d+(?:[.,]\d+)?\s*g\b/i)?.[0]);
+    || parseAmount(table.servingSize?.match(/\d+(?:[.,]\d+)?\s*g\b/i)?.[0])
+    || parseAmount(headerCell);
   const aminoAcids = { essential: [], nonEssential: [] };
 
   for (const row of table.rows) {
@@ -854,9 +1003,9 @@ try {
   }
   // The previous catalog is the baseline for spotting broken sources, and its
   // data is kept for any source that fails.
-  let existingCatalog = { whey: [], sunscreen: [] };
+  let existingCatalog = { whey: [], sunscreen: [], creatine: [] };
   try {
-    existingCatalog = JSON.parse(await readFile(outputPath, 'utf8')).products;
+    existingCatalog = { creatine: [], ...JSON.parse(await readFile(outputPath, 'utf8')).products };
   } catch (error) {
     if (sourceOnly) throw new Error(`Could not load the existing catalog for a source-only update: ${error.message}`);
     console.warn(`No previous catalog to compare against: ${error.message}`);
@@ -877,15 +1026,19 @@ try {
     return { products: previous, kept: true };
   }
 
-  const catalog = { whey: [], sunscreen: [] };
+  const catalog = { whey: [], sunscreen: [], creatine: [] };
   const catalogProducts = new Map();
   // Products of failed sources, copied from the previous catalog unchanged.
   const keptWhey = [];
   for (const source of sources.filter((item) => !sourceOnly || item.brand.toLowerCase() === sourceOnly.toLowerCase())) {
-    if (source.category && source.category !== 'whey') continue;
+    if ((source.category && source.category !== 'whey') || source.whey === false) continue;
     const searchUrls = source.searchUrls || [source.searchUrl];
     const previous = existingCatalog.whey.filter((product) => product.brand === source.brand);
     const result = await refreshSource(source.brand, previous, async () => {
+      if (source.vtex || source.shopify) {
+        const listings = source.vtex ? await fetchVtexSupplements(source, 'whey') : await fetchShopifySupplements(source, 'whey');
+        return listings.map((raw) => toProduct(raw, 'whey', source)).filter((product) => product?.url);
+      }
       const found = [];
       for (const [index, searchUrl] of searchUrls.entries()) {
         found.push(...await scrapeSearch(page, { ...source, searchUrl }, 'whey'));
@@ -941,6 +1094,7 @@ try {
   }
 
   let imageOcrRecoveries = 0;
+  const previousWheyByUrl = new Map(existingCatalog.whey.map((product) => [product.url, product]));
   for (const product of refreshedWhey) {
     const detailsUrl = nutritionSourceUrl(product, catalog.whey);
     if (!detailsUrl) {
@@ -950,6 +1104,7 @@ try {
       product.nutritionTable = null;
       product.nutritionDetails = null;
       delete product.estimatedAmount;
+      if (keepPreviousNutrition(product, previousWheyByUrl.get(product.url))) continue;
       console.warn(`No product detail page found for nutrition data: ${product.name}`);
       continue;
     }
@@ -957,6 +1112,8 @@ try {
     // Listing pages lazy-load card images, so a card can come back without one.
     if (!product.imageUrl && detailsUrl === product.url && nutrition.productImageUrl) product.imageUrl = nutrition.productImageUrl;
     delete nutrition.productImageUrl;
+    addLabel(product, labelInfo(nutrition.pageText), previousWheyByUrl.get(product.url));
+    delete nutrition.pageText;
     const htmlServingMass = nutritionDetails(nutrition.nutritionTable)?.servingMassGrams;
     if (!Number.isFinite(nutrition.proteinGrams) || !Number.isFinite(nutrition.carbohydrateGrams) || !Number.isFinite(htmlServingMass)) {
       const imageNutrition = await readNutritionFromImages(context, page, nutrition.nutritionImageUrls, detailsUrl);
@@ -996,8 +1153,12 @@ try {
       && nutrition.proteinGrams > 0
       ? nutrition.carbohydrateGrams / nutrition.proteinGrams
       : null;
-    if (product.carbProteinRatio === null) console.warn(`Nutrition facts not found for: ${product.name}`);
+    if (product.carbProteinRatio === null && keepPreviousNutrition(product, previousWheyByUrl.get(product.url))) {
+      console.warn(`Kept previous nutrition facts for: ${product.name} (this run could not read them)`);
+    } else if (product.carbProteinRatio === null) console.warn(`Nutrition facts not found for: ${product.name}`);
   }
+
+  catalog.creatine = await refreshCreatine(page, existingCatalog.creatine, problems, refreshSource);
 
   if (!sourceOnly && !catalog.sunscreen.length) {
     throw new Error('No Nutriex sunscreen products were extracted. The store page may have changed or blocked the browser; existing catalog was left untouched.');
@@ -1005,6 +1166,7 @@ try {
 
   problems.push(...compareProducts(existingCatalog.whey, refreshedWhey));
   problems.push(...compareProducts(existingCatalog.sunscreen, catalog.sunscreen));
+  problems.push(...compareProducts(existingCatalog.creatine, catalog.creatine));
   const previousImages = new Map(Object.values(existingCatalog).flat()
     .filter((product) => product.url && product.image).map((product) => [product.url, product.image]));
   const imageCount = await saveProductImages(catalog, context, previousImages, problems);
@@ -1016,7 +1178,7 @@ try {
   };
   await mkdir(path.dirname(outputPath), { recursive: true });
   await writeFile(outputPath, `${JSON.stringify(output, null, 2)}\n`, 'utf8');
-  console.log(`Saved ${catalog.whey.length} whey products and ${imageCount} product images to the local catalog.`);
+  console.log(`Saved ${catalog.whey.length} whey products, ${catalog.creatine.length} creatines and ${imageCount} product images to the local catalog.`);
   console.log(`Recovered nutrition data from product images for ${imageOcrRecoveries} whey products.`);
   if (problems.length) {
     console.error(`\n${problems.length} problem(s) found. Review them before publishing:`);

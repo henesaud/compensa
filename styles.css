@@ -77,7 +77,47 @@ main { width: min(100% - 40px, 1080px); margin: 44px auto 64px; }
 .filter-panel { padding: 18px 0 20px; }
 .filter-controls { display: flex; flex: 1; flex-wrap: wrap; gap: 10px; }
 .filter-control { display: grid; gap: 6px; }
-.filter-control label { color: var(--label); font-size: 10px; font-weight: 700; }
+.filter-label { color: var(--label); font-size: 10px; font-weight: 700; }
+.filter-menu { position: relative; }
+.filter-trigger { position: relative; display: flex; align-items: center; gap: 6px; min-width: 150px; border: 1px solid var(--field-border); border-radius: 999px; background: var(--white); color: var(--ink); cursor: pointer; list-style: none; padding: 9px 32px 9px 13px; font-size: 12px; user-select: none; transition: border-color .15s ease, background .15s ease; }
+.filter-trigger::-webkit-details-marker { display: none; }
+.filter-trigger::after { content: ''; position: absolute; right: 14px; top: 50%; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-70%) rotate(45deg); transition: transform .15s ease; }
+.filter-menu[open] .filter-trigger::after { transform: translateY(-30%) rotate(-135deg); }
+.filter-trigger:hover, .filter-menu[open] .filter-trigger { border-color: var(--brand); }
+.filter-trigger:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.filter-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filter-menu.has-value .filter-trigger { border-color: var(--accent); background: var(--tint); color: var(--brand-dark); font-weight: 700; }
+.filter-count { flex: none; border-radius: 999px; background: var(--accent); color: #fff; padding: 1px 6px; font-size: 10px; font-weight: 700; }
+.filter-dropdown { position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; min-width: 100%; width: max-content; max-width: min(300px, calc(100vw - 32px)); border: 1px solid var(--border); border-radius: 10px; background: var(--white); box-shadow: 0 12px 28px rgba(var(--shadow),.18); padding: 6px; }
+/* Long lists scroll; lists with ⓘ balloons don't, since scrolling would clip them. */
+.filter-dropdown:not(:has(.filter-info)) { max-height: 340px; overflow-y: auto; }
+.filter-option { display: flex; align-items: center; gap: 9px; border-radius: 6px; padding: 8px 10px; color: var(--ink); font-size: 12px; cursor: pointer; }
+.filter-option:hover { background: var(--tint); }
+.filter-option input { flex: none; width: 15px; height: 15px; margin: 0; accent-color: var(--accent); }
+.filter-option:has(input:checked) { color: var(--brand-dark); font-weight: 700; }
+.filter-option-row { position: relative; display: flex; align-items: center; gap: 4px; }
+.filter-option-row .filter-option { flex: 1; }
+.filter-info { flex: none; display: grid; place-items: center; width: 22px; height: 22px; margin-right: 4px; border: 1px solid var(--field-border); border-radius: 50%; background: var(--white); color: var(--muted); cursor: help; padding: 0; font: italic 700 11px Georgia, serif; }
+.filter-info[aria-expanded="true"] { border-color: var(--accent); background: var(--accent); color: #fff; }
+.filter-info:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+/* The balloon sits above the ⓘ, its tail pointing at it. */
+.filter-balloon { position: absolute; right: 0; bottom: calc(100% + 4px); z-index: 30; width: max-content; max-width: min(250px, calc(100vw - 48px)); border-radius: 8px; background: var(--ink); color: var(--paper); padding: 8px 10px; font-size: 11px; font-weight: 500; line-height: 1.45; box-shadow: 0 8px 20px rgba(var(--shadow),.25); opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(3px); transition: opacity .12s ease, transform .12s ease, visibility .12s; }
+.filter-balloon::after { content: ''; position: absolute; top: 100%; right: 9px; border: 6px solid transparent; border-top-color: var(--ink); }
+.filter-info[aria-expanded="true"] + .filter-balloon { opacity: 1; visibility: visible; transform: none; }
+@media (hover: hover) {
+  .filter-info:hover + .filter-balloon, .filter-info:focus-visible + .filter-balloon { opacity: 1; visibility: visible; transform: none; }
+  .filter-info:hover { border-color: var(--accent); background: var(--accent); color: #fff; }
+}
+.filter-dropdown-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid var(--soft-line); margin-top: 4px; padding: 8px 10px 4px; color: var(--faint); font-size: 10px; }
+.filter-clear { border: 0; background: none; color: var(--brand); cursor: pointer; padding: 0; font-size: 11px; font-weight: 700; }
+.filter-clear:hover { text-decoration: underline; }
+.filter-segmented { display: inline-flex; width: fit-content; border: 1px solid var(--field-border); border-radius: 999px; background: var(--white); padding: 2px; }
+.filter-segmented label { position: relative; cursor: pointer; }
+.filter-segmented input { position: absolute; opacity: 0; pointer-events: none; }
+.filter-segmented span { display: block; border-radius: 999px; padding: 7px 16px; color: var(--ink); font-size: 12px; transition: background .15s ease; }
+.filter-segmented label:hover span { color: var(--brand-dark); }
+.filter-segmented input:checked + span { background: var(--accent); color: #fff; font-weight: 700; }
+.filter-segmented input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 1px; }
 select { appearance: none; min-width: 150px; border: 1px solid var(--field-border); border-radius: 6px; color: var(--ink); background: var(--white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23435349' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 12px center; padding: 10px 34px 10px 11px; font-size: 12px; }
 .results-heading { display: flex; justify-content: space-between; align-items: center; margin: 3px 0 11px; font-size: 12px; font-weight: 700; }
 .results-actions { display: flex; align-items: center; gap: 13px; }
@@ -201,7 +241,8 @@ select { appearance: none; min-width: 150px; border: 1px solid var(--field-borde
   .section-heading { align-items: flex-start; flex-direction: column; gap: 9px; }
   .section-heading h1 { font-size: 27px; }
   .filter-controls { display: grid; grid-template-columns: 1fr 1fr; }
-  .filter-control select { min-width: 0; width: 100%; }
+  .filter-control select, .filter-trigger { min-width: 0; width: 100%; }
+  .filter-control:nth-child(even) .filter-dropdown { left: auto; right: 0; }
   .product-card { align-items: flex-start; flex-direction: column; gap: 16px; padding: 16px; }
   .product-info { width: 100%; }
   .price-block { width: 100%; flex: initial; text-align: left; }
@@ -297,3 +338,42 @@ select { appearance: none; min-width: 150px; border: 1px solid var(--field-borde
 .theme-toggle:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .theme-icon-light, :root[data-theme="dark"] .theme-icon-dark { display: none; }
 :root[data-theme="dark"] .theme-icon-light { display: inline; }
+
+/* Compare */
+.compare-toggle { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; color: var(--muted); font-size: 11px; font-weight: 700; cursor: pointer; }
+.compare-toggle input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); }
+.compare-toggle:has(input:checked) { color: var(--brand-dark); }
+.compare-bar { position: fixed; z-index: 40; left: 0; right: 0; bottom: 0; padding: 0 16px 16px; pointer-events: none; }
+.compare-bar-inner { display: flex; align-items: center; justify-content: space-between; gap: 14px; width: min(100%, 1080px); margin: 0 auto; border: 1px solid var(--border); border-radius: 12px; background: var(--white); box-shadow: 0 12px 32px rgba(var(--shadow),.22); padding: 10px 12px; pointer-events: auto; }
+.compare-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.compare-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 260px; border: 1px solid var(--field-border); border-radius: 999px; background: var(--tint); padding: 5px 6px 5px 11px; font-size: 11px; font-weight: 700; }
+.compare-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.compare-chip button { flex: none; border: 0; border-radius: 50%; width: 18px; height: 18px; background: none; color: var(--muted); cursor: pointer; padding: 0; font-size: 10px; }
+.compare-chip button:hover { background: var(--accent); color: #fff; }
+.compare-hint { color: var(--muted); font-size: 11px; }
+.compare-actions { display: flex; flex: none; align-items: center; gap: 10px; }
+.compare-clear { border: 0; background: none; color: var(--brand); cursor: pointer; padding: 0; font-size: 11px; font-weight: 700; }
+.compare-open { border: 0; border-radius: 999px; background: var(--accent); color: #fff; cursor: pointer; padding: 9px 16px; font-size: 12px; font-weight: 700; }
+.compare-open:disabled { background: var(--track); color: var(--faint); cursor: not-allowed; }
+.compare-open:focus-visible, .compare-clear:focus-visible, .compare-chip button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.compare-dialog { width: min(760px, calc(100vw - 32px)); }
+.compare-row { display: grid; grid-template-columns: minmax(110px, 1fr) 1.4fr 1.4fr; gap: 0 12px; align-items: start; padding: 8px 4px; font-size: 12px; }
+.compare-table .compare-row + .compare-row { border-top: 1px solid var(--soft-line); }
+.compare-label { color: var(--muted); }
+.compare-cell { font-weight: 700; overflow-wrap: anywhere; }
+.compare-cell.details-missing { color: var(--faint); font-weight: 500; }
+.compare-better { color: var(--brand-dark); }
+.compare-check { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 10px; }
+.compare-head { padding-bottom: 14px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.compare-head img { display: block; width: 56px; height: 56px; object-fit: contain; border: 1px solid var(--border); border-radius: 7px; margin-bottom: 8px; background: var(--white); }
+.compare-head .product-brand { margin-bottom: 4px; }
+.compare-name { margin: 0 0 6px; font: 700 13px/1.35 'Segoe UI', sans-serif; }
+body:has(.compare-bar:not([hidden])) main { padding-bottom: 72px; }
+@media (max-width: 520px) {
+  .compare-row { grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+  .compare-label { grid-column: 1 / -1; font-size: 11px; }
+  .compare-head .compare-label { display: none; }
+  .compare-bar-inner { flex-direction: column; align-items: stretch; }
+  .compare-chip { max-width: 100%; }
+  .compare-actions { justify-content: space-between; }
+}
