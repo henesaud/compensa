@@ -4,6 +4,7 @@ const productGrid = document.querySelector('#product-grid');
 const resultCount = document.querySelector('#result-count');
 const catalogStatus = document.querySelector('#catalog-status');
 const nutritionDialog = document.querySelector('#nutrition-dialog');
+const nutritionDialogEyebrow = document.querySelector('#nutrition-dialog-eyebrow');
 const nutritionDialogTitle = document.querySelector('#nutrition-dialog-title');
 const nutritionDialogProduct = document.querySelector('#nutrition-dialog-product');
 const nutritionDialogContent = document.querySelector('#nutrition-dialog-content');
@@ -128,12 +129,20 @@ function saturatedFatPer100g(details) {
     : null;
 }
 
+// Tells apart a product whose nutrition table was not found from one whose
+// table simply leaves the requested line out.
+function missingNutritionData(details, what) {
+  return details
+    ? `<p class="nutrition-unavailable">A tabela nutricional deste produto não tem dado de ${what}.</p>`
+    : `<p class="nutrition-unavailable">Não encontramos a tabela nutricional deste produto, então não há dado de ${what}.</p>`;
+}
+
 function renderNutritionDialog(product, detail) {
   const details = product.nutritionDetails;
   if (detail === 'energy') {
     nutritionDialogTitle.textContent = 'Energia';
     if (!Number.isFinite(details?.energyKcalPerServing)) {
-      return '<p class="nutrition-unavailable">Energia não informada na tabela deste produto.</p>';
+      return missingNutritionData(details, 'energia');
     }
     const servingMass = Number.isFinite(details.servingMassGrams) ? `${formatNutritionAmount(details.servingMassGrams)} g` : 'porção da embalagem';
     return `
@@ -147,7 +156,7 @@ function renderNutritionDialog(product, detail) {
   if (detail === 'saturated-fat') {
     nutritionDialogTitle.textContent = 'Gordura saturada';
     if (!Number.isFinite(details?.saturatedFatGrams)) {
-      return '<p class="nutrition-unavailable">Gordura saturada não informada na tabela deste produto.</p>';
+      return missingNutritionData(details, 'gordura saturada');
     }
     const servingMass = Number.isFinite(details.servingMassGrams) ? `${formatNutritionAmount(details.servingMassGrams)} g` : 'porção da embalagem';
     const per100g = saturatedFatPer100g(details);
@@ -170,7 +179,7 @@ function renderNutritionDialog(product, detail) {
   if (detail === 'carb-protein') {
     nutritionDialogTitle.textContent = 'Carboidratos e proteína';
     if (!Number.isFinite(product.carbProteinRatio)) {
-      return '<p class="nutrition-unavailable">A proporção não pôde ser calculada porque faltam dados nutricionais deste produto.</p>';
+      return missingNutritionData(details, 'carboidratos e proteína');
     }
     return `
       ${warningBox(product, detail)}
@@ -186,7 +195,7 @@ function renderNutritionDialog(product, detail) {
   const essential = details?.aminoAcids?.essential || [];
   const nonEssential = details?.aminoAcids?.nonEssential || [];
   if (!essential.length && !nonEssential.length) {
-    return '<p class="nutrition-unavailable">A tabela deste produto não informa o perfil de aminoácidos.</p>';
+    return missingNutritionData(details, 'aminoácidos');
   }
   const maxAminoAmount = Math.max(1, ...[...essential, ...nonEssential].map((aminoAcid) => aminoAcid.amount));
   const aminoGroup = (title, aminoAcids) => `
@@ -197,7 +206,7 @@ function renderNutritionDialog(product, detail) {
           const barWidth = Math.min(100, Math.max(0, (aminoAcid.amount / maxAminoAmount) * 100));
           return `<li class="amino-row"><div class="amino-row-data"><span>${escapeHtml(aminoAcid.name)}</span><strong>${formatNutritionAmount(aminoAcid.amount)} ${escapeHtml(aminoAcid.unit)}</strong></div><div class="amino-bar-track" role="meter" aria-valuemin="0" aria-valuemax="${maxAminoAmount}" aria-valuenow="${aminoAcid.amount}" aria-label="${escapeHtml(aminoAcid.name)}"><span class="amino-bar-fill" style="width:${barWidth}%"></span></div></li>`;
         }).join('')}</ul>`
-        : '<p class="nutrition-unavailable">Não informado.</p>'}
+        : '<p class="nutrition-unavailable">Sem dado.</p>'}
     </section>`;
   return `
     <div class="amino-groups">
@@ -205,6 +214,108 @@ function renderNutritionDialog(product, detail) {
       ${aminoGroup('Não essenciais e condicionais', nonEssential)}
     </div>
     <p class="nutrition-modal-note">Valores por porção conforme a tabela nutricional. Alguns aminoácidos não essenciais podem ser condicionalmente essenciais.</p>`;
+}
+
+// Sunscreen features from the Mercado Livre catalog attributes
+// (scripts/mercadolivre-catalog.mjs), with the product name as a fallback.
+const plainName = (product) => product.name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const catalogSays = (product, attribute) => product.mercadoLivre?.attributes?.[attribute];
+const TINTED_NAME = /com cor|colou?r|\btom\b|\bcor\b|tonaliz|\bfluido? cor/;
+const FEATURES = [
+  { value: 'water', label: 'Resistente à água', attribute: 'IS_WATER_RESISTANT', test: (product) => catalogSays(product, 'IS_WATER_RESISTANT') === 'Sim' },
+  { value: 'oil-free', label: 'Oil free', attribute: 'IS_OIL_FREE', test: (product) => catalogSays(product, 'IS_OIL_FREE') === 'Sim' || /oil.?free|livre de oleo/.test(plainName(product)) },
+  { value: 'tinted', label: 'Com cor', attribute: 'WITH_COLOR', test: (product) => catalogSays(product, 'WITH_COLOR') === 'Sim' || TINTED_NAME.test(plainName(product)) },
+  { value: 'untinted', label: 'Sem cor', card: false, test: (product) => catalogSays(product, 'WITH_COLOR') === 'Não' && !TINTED_NAME.test(plainName(product)) },
+  { value: 'eyes', label: 'Indicado para perto dos olhos', attribute: 'IS_SUITABLE_FOR_EYE_CONTOUR', test: (product) => catalogSays(product, 'IS_SUITABLE_FOR_EYE_CONTOUR') === 'Sim' },
+  { value: 'kids', label: 'Infantil', attribute: 'IS_INFANT', test: (product) => catalogSays(product, 'IS_INFANT') === 'Sim' || /\bkids\b|infantil|\bbaby\b|\bbebe|crianc/.test(plainName(product)) },
+  { value: 'hypoallergenic', label: 'Hipoalergênico', attribute: 'IS_HYPOALLERGENIC_PRODUCT', test: (product) => catalogSays(product, 'IS_HYPOALLERGENIC_PRODUCT') === 'Sim' },
+  { value: 'fragrance-free', label: 'Sem fragrância', attribute: 'IS_FRAGRANCE_FREE', test: (product) => catalogSays(product, 'IS_FRAGRANCE_FREE') === 'Sim' },
+];
+
+// Review traits read from store reviews (scripts/sunscreen-reviews.mjs). yes
+// counts complaints ("arde os olhos"), no counts denials ("não arde").
+const REVIEW_TRAITS = [
+  { key: 'eyeSting', complaint: 'Arde os olhos', praise: 'Não arde os olhos' },
+  { key: 'sticky', complaint: 'Pegajoso', praise: 'Não fica pegajoso' },
+  { key: 'oily', complaint: 'Deixa oleoso', praise: 'Não deixa oleoso' },
+  { key: 'whiteCast', complaint: 'Esbranquiça', praise: 'Não esbranquiça' },
+  { key: 'pilling', complaint: 'Esfarela', praise: 'Não esfarela' },
+  { key: 'dryTouch', praise: 'Toque seco', yesIsPraise: true },
+];
+const MIN_TRAIT_MENTIONS = 3;
+const rating = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+// Other catalog attributes shown in the details dialog, in this order.
+const EXTRA_ATTRIBUTES = [
+  ['SKIN_TYPE', 'Tipo de pele'],
+  ['APPLICATION_ZONES', 'Onde aplicar'],
+  ['SUNSCREEN_FORMAT', 'Formato'],
+  ['TEXTURE', 'Textura'],
+  ['SUNSCREEN_TONE', 'Tom'],
+  ['IS_SWEAT_RESISTANT', 'Resistente ao suor'],
+  ['MIN_RECOMMENDED_AGE', 'Idade mínima'],
+  ['IS_PARABENS_FREE', 'Sem parabenos'],
+  ['IS_COMEDOGENIC', 'Comedogênico'],
+  ['IS_VEGAN', 'Vegano'],
+  ['IS_CRUELTY_FREE', 'Não testado em animais'],
+];
+
+const detailRow = (label, value) => `<div class="details-row"><dt>${escapeHtml(label)}</dt><dd${value ? '' : ' class="details-missing"'}>${escapeHtml(value || 'Sem dado')}</dd></div>`;
+
+function renderSunscreenDialog(product) {
+  const featureRows = FEATURES.filter((feature) => feature.attribute).map((feature) => {
+    const value = feature.test(product) ? 'Sim' : catalogSays(product, feature.attribute) === 'Não' ? 'Não' : '';
+    return detailRow(feature.label, value);
+  }).join('');
+  const extraRows = EXTRA_ATTRIBUTES.map(([attribute, label]) => {
+    const value = catalogSays(product, attribute) || (attribute === 'TEXTURE' ? product.texture : '');
+    return value ? detailRow(label, value) : '';
+  }).join('');
+  const highlights = product.mercadoLivre?.mainFeatures || [];
+  const reviews = product.reviews;
+  const reviewRows = reviews?.withText ? REVIEW_TRAITS.map(({ key, complaint, praise, yesIsPraise }) => {
+    const { yes = 0, no = 0 } = reviews.mentions?.[key] || {};
+    if (!yes && !no) return '';
+    return `<div class="details-row"><dt>${escapeHtml(yesIsPraise ? praise : complaint)}?</dt><dd>Sim: ${yes} · Não: ${no}</dd></div>`;
+  }).join('') : '';
+  return `
+    <section class="details-section">
+      <h3>Características</h3>
+      <dl class="details-list">${featureRows}${extraRows}</dl>
+    </section>
+    ${highlights.length ? `<section class="details-section"><h3>Destaques do fabricante</h3><ul class="details-highlights">${highlights.map((text) => `<li>${escapeHtml(text)}</li>`).join('')}</ul></section>` : ''}
+    ${reviews?.count ? `<section class="details-section">
+      <h3>Avaliações na loja</h3>
+      <p class="details-text"><strong>${rating.format(reviews.average)} ★</strong> em ${reviews.count.toLocaleString('pt-BR')} avaliações. Das ${reviews.read} mais recentes, ${reviews.withText} têm comentário${reviewRows ? '. Quantas dizem que o produto…' : '.'}</p>
+      ${reviewRows ? `<dl class="details-list">${reviewRows}</dl>` : ''}
+    </section>` : ''}
+    ${product.ingredients ? `<section class="details-section"><details><summary>Ingredientes</summary><p class="details-text details-ingredients">${escapeHtml(product.ingredients)}</p></details></section>` : ''}
+    <p class="nutrition-modal-note">As características vêm do catálogo do Mercado Livre${product.mercadoLivre ? '' : ' (este produto não foi encontrado lá)'} ou do nome do produto e podem ter erros. Confira na embalagem.</p>`;
+}
+
+function featureLine(product) {
+  const labels = FEATURES.filter((feature) => feature.card !== false && feature.test(product)).map((feature) => feature.label);
+  return labels.length ? `<p class="product-features">${labels.join(' <span>·</span> ')}</p>` : '';
+}
+
+function reviewSummary(product) {
+  const reviews = product.reviews;
+  if (!reviews?.count) return '';
+  const tags = REVIEW_TRAITS.flatMap(({ key, complaint, praise, yesIsPraise }) => {
+    const { yes = 0, no = 0 } = reviews.mentions?.[key] || {};
+    const [count, label, kind] = yesIsPraise
+      ? [yes - no >= MIN_TRAIT_MENTIONS ? yes : 0, praise, 'praise']
+      : yes >= MIN_TRAIT_MENTIONS && yes > no ? [yes, complaint, 'complaint warning-level-2']
+        : no >= MIN_TRAIT_MENTIONS && no > yes ? [no, praise, 'praise'] : [0];
+    if (!count) return [];
+    const tip = `${count} de ${reviews.withText} avaliações com comentário citam isso`;
+    return [{ count, html: `<li class="review-tag review-${kind}" tabindex="0" data-tip="${tip}">${label} <span>${count}</span></li>` }];
+  }).sort((a, b) => b.count - a.count).map((tag) => tag.html);
+  return `
+    <div class="review-summary">
+      <p class="review-rating"><strong>${rating.format(reviews.average)} ★</strong> ${reviews.count.toLocaleString('pt-BR')} ${reviews.count === 1 ? 'avaliação' : 'avaliações'} na loja</p>
+      ${tags.length ? `<ul class="review-tags">${tags.join('')}</ul>` : ''}
+    </div>`;
 }
 
 function addFilter(label, key, values, allLabel = 'Qualquer') {
@@ -263,6 +374,8 @@ function renderFilters() {
   if (activeCategory === 'sunscreen') {
     const spfs = [...new Set(categoryProducts.map((product) => product.spf).filter(Number.isFinite))].sort((a, b) => a - b);
     markup += addFilter('FPS', 'spf', spfs.map(String), 'Todos');
+    markup += `<div class="filter-control"><label for="filter-feature">Característica</label><select id="filter-feature" data-filter="feature"><option value="">Qualquer</option>${FEATURES
+      .map((feature) => `<option value="${feature.value}">${feature.label}</option>`).join('')}</select></div>`;
     markup += `<div class="filter-control"><label for="filter-measure">Medida</label><select id="filter-measure" data-filter="measure">
       <option value="ml">ml (loções, fluidos, sprays)</option><option value="g">g (cremes, géis, bastões)</option></select></div>`;
   }
@@ -278,6 +391,7 @@ function renderProducts() {
   const filtered = linkedProducts
     .filter((product) => Object.entries(selectedFilters).every(([key, value]) => {
       if (!value) return true;
+      if (key === 'feature') return FEATURES.find((feature) => feature.value === value).test(product);
       return String(key === 'measure' ? sunscreenMeasure(product) : product[key]) === value;
     }))
     .map((product) => ({ ...product, unitPrice: getUnitPrice(product, activeCategory) }))
@@ -323,7 +437,7 @@ function renderProducts() {
     };
     const ratio = Number.isFinite(product.carbProteinRatio)
       ? formatRatio(product.carbProteinRatio)
-      : 'não informado';
+      : 'Sem dado';
     const essentialAminoAcidCount = product.nutritionDetails?.aminoAcids?.essential?.length || 0;
     const nonEssentialAminoAcidCount = product.nutritionDetails?.aminoAcids?.nonEssential?.length || 0;
     const hasAminoAcidData = essentialAminoAcidCount + nonEssentialAminoAcidCount > 0;
@@ -331,12 +445,12 @@ function renderProducts() {
       ? `${formatNutritionAmount(saturatedFatPer100g(product.nutritionDetails))} g/100 g`
       : Number.isFinite(product.nutritionDetails?.saturatedFatGrams)
         ? `${formatNutritionAmount(product.nutritionDetails.saturatedFatGrams)} g/porção`
-        : 'Não informado';
+        : 'Sem dado';
     const energySummary = Number.isFinite(product.nutritionDetails?.energyKcalPer100g)
       ? `${formatNutritionAmount(product.nutritionDetails.energyKcalPer100g)} kcal/100 g`
       : Number.isFinite(product.nutritionDetails?.energyKcalPerServing)
         ? `${formatNutritionAmount(product.nutritionDetails.energyKcalPerServing)} kcal/porção`
-        : 'Não informado';
+        : 'Sem dado';
     return `
       <article class="product-card${isBest ? ' best-value' : ''}">
         ${isBest ? `<span class="best-label">${activeCategory === 'whey' ? 'MELHOR VALOR' : 'MENOR PREÇO'}</span>` : ''}
@@ -354,17 +468,18 @@ function renderProducts() {
                 <span>Energia</span><strong>${energySummary}</strong>
               </button>
               <button class="nutrition-info-button" type="button" data-nutrition-detail="amino-acids" data-product-index="${productIndex}" aria-haspopup="dialog">
-                <span>Aminoácidos</span><strong>${hasAminoAcidData ? `${essentialAminoAcidCount} essenciais` : 'Não informado'}</strong>
+                <span>Aminoácidos</span><strong>${hasAminoAcidData ? `${essentialAminoAcidCount} essenciais` : 'Sem dado'}</strong>
               </button>
               <button class="nutrition-info-button${warnings['saturated-fat'] ? ` warning-level-${warnings['saturated-fat'].level}` : ''}" type="button" data-nutrition-detail="saturated-fat" data-product-index="${productIndex}" aria-haspopup="dialog">
                 <span>${warningMark('saturated-fat')}Gordura saturada</span><strong>${saturatedFatSummary}</strong>
               </button>
-            </div>` : `<p class="product-meta">FPS ${Number.isFinite(product.spf) ? product.spf : 'não informado'} <span>·</span> ${escapeHtml(product.type)}</p>`}
+            </div>` : `<p class="product-meta">FPS ${Number.isFinite(product.spf) ? product.spf : 'sem dado'} <span>·</span> ${escapeHtml(product.type)}${product.texture ? ` <span>·</span> ${escapeHtml(product.texture)}` : ''}</p>${featureLine(product)}${reviewSummary(product)}
+            <button class="details-button" type="button" data-sunscreen-details data-product-index="${productIndex}" aria-haspopup="dialog">Características</button>`}
           </div>
         </div>
         <div class="price-block">
           <div class="unit-price">${Number.isFinite(product.unitPrice) ? currency.format(product.unitPrice) : '—'}</div>
-          <div class="unit-caption"${product.nutritionDataSource === 'product image OCR' ? ' title="O peso da porção ou a proteína foi lido automaticamente da imagem do produto."' : ''}>${Number.isFinite(product.unitPrice) ? `por ${unitLabel}${product.paymentCondition ? ` · ${escapeHtml(product.paymentCondition)}` : ''}${product.nutritionDataSource === 'product image OCR' ? ' · imagem' : ''}` : (activeCategory === 'whey' ? 'proteína não informada' : `por ${unitLabel}`)}</div>
+          <div class="unit-caption"${product.nutritionDataSource === 'product image OCR' ? ' title="O peso da porção ou a proteína foi lido automaticamente da imagem do produto."' : ''}>${Number.isFinite(product.unitPrice) ? `por ${unitLabel}${product.paymentCondition ? ` · ${escapeHtml(product.paymentCondition)}` : ''}${product.nutritionDataSource === 'product image OCR' ? ' · imagem' : ''}` : (activeCategory === 'whey' ? 'sem dado de proteína' : `por ${unitLabel}`)}</div>
           <div class="package-price"><span>${formatAmount(product)}</span><strong>${currency.format(product.price)}</strong></div>
         </div>
       </article>`;
@@ -432,12 +547,19 @@ filterControls.addEventListener('click', (event) => {
   renderProducts();
 });
 productGrid.addEventListener('click', (event) => {
-  const button = event.target.closest('[data-nutrition-detail]');
+  const button = event.target.closest('[data-nutrition-detail], [data-sunscreen-details]');
   if (!button) return;
   const product = visibleProducts[Number(button.dataset.productIndex)];
   if (!product) return;
   nutritionDialogProduct.textContent = product.name;
-  nutritionDialogContent.innerHTML = renderNutritionDialog(product, button.dataset.nutritionDetail);
+  if (button.matches('[data-sunscreen-details]')) {
+    nutritionDialogEyebrow.textContent = 'PROTETOR SOLAR';
+    nutritionDialogTitle.textContent = 'Detalhes';
+    nutritionDialogContent.innerHTML = renderSunscreenDialog(product);
+  } else {
+    nutritionDialogEyebrow.textContent = 'DETALHES NUTRICIONAIS';
+    nutritionDialogContent.innerHTML = renderNutritionDialog(product, button.dataset.nutritionDetail);
+  }
   nutritionDialog.showModal();
 });
 document.querySelector('#nutrition-dialog-close').addEventListener('click', () => nutritionDialog.close());

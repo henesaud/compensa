@@ -5,7 +5,9 @@ import { createHash } from 'node:crypto';
 import { chromium } from 'playwright';
 import { createWorker } from 'tesseract.js';
 import { fetchVtexSunscreens, vtexSunscreenSources } from './vtex-sunscreens.mjs';
+import { fetchCatalogProduct, mercadoLivreToken, searchCatalogProduct } from './mercadolivre-catalog.mjs';
 import { productThumbnail } from './product-image.mjs';
+import { compareProducts, shrinkage } from './update-checks.mjs';
 import { fatDetails } from './nutrition-table.mjs';
 import { agreeingReading, hasSaturatedFat, mergeMissingRows, ocrNutritionTable, sameReading, parseOcrNutritionTable, summarizeOcrNutrition, validateOcrNutrition } from './nutrition-ocr.mjs';
 
@@ -114,10 +116,56 @@ function toProduct(raw, category, source) {
     product.spf = parseSpf(name);
     product.store = source.store || source.brand;
     if (!source.vtex) product.paymentCondition = 'Pix ou boleto';
+    for (const [key, value] of Object.entries(raw.details || {})) if (value !== undefined) product[key] = value;
   }
   if (amount.estimatedFromDoses) product.estimatedAmount = true;
 
   return product;
+}
+
+// Reviews only accumulate, so a product that comes back without them means the
+// review service failed this run; the previous run's reviews are kept.
+function keepPreviousReviews(sunscreens, previous) {
+  const previousByUrl = new Map(previous.map((product) => [product.url, product.reviews]));
+  let kept = 0;
+  for (const product of sunscreens) {
+    if (product.reviews || !previousByUrl.get(product.url)) continue;
+    product.reviews = previousByUrl.get(product.url);
+    kept += 1;
+  }
+  if (kept) console.warn(`Kept previous reviews for ${kept} sunscreens whose reviews could not be read.`);
+}
+
+// Copies the Mercado Livre catalog attributes onto sunscreens, found by
+// barcode or, for stores without one, by name.
+// Without credentials (or if the API fails) the previous run's data is kept.
+async function addMercadoLivreData(sunscreens, previous) {
+  const previousByUrl = new Map(previous.map((product) => [product.url, product.mercadoLivre]));
+  let token = null;
+  try {
+    token = await mercadoLivreToken();
+  } catch (error) {
+    console.warn(`Mercado Livre login failed, keeping previous catalog data: ${error.message}`);
+  }
+  if (!token) console.warn('No Mercado Livre credentials (ML_CLIENT_ID, ML_CLIENT_SECRET); keeping previous catalog data.');
+  let matched = 0;
+  for (const product of sunscreens) {
+    let data = previousByUrl.get(product.url);
+    if (token) {
+      try {
+        data = product.barcode
+          ? await fetchCatalogProduct(token, product.barcode, product.spf)
+          : await searchCatalogProduct(token, product);
+      } catch (error) {
+        console.warn(`Could not read Mercado Livre data for ${product.name}: ${error.message}`);
+      }
+    }
+    if (data) {
+      product.mercadoLivre = data;
+      matched += 1;
+    }
+  }
+  console.log(`Found Mercado Livre catalog data for ${matched} of ${sunscreens.length} sunscreens.`);
 }
 
 function isDirectProductUrl(value, source) {
@@ -753,7 +801,7 @@ function imageExtension(imageUrl, contentType) {
   return ['avif', 'jpg', 'jpeg', 'png', 'webp'].includes(urlExtension) ? (urlExtension === 'jpeg' ? 'jpg' : urlExtension) : null;
 }
 
-async function saveProductImages(catalog, context) {
+async function saveProductImages(catalog, context, previousImages, problems) {
   const imageDirectory = path.join(root, 'assets', 'products');
   await mkdir(imageDirectory, { recursive: true });
   let saved = 0;
@@ -785,6 +833,9 @@ async function saveProductImages(catalog, context) {
       } catch (error) {
         console.warn(`Could not save image for "${product.name}": ${error.message}`);
         delete product.imageUrl;
+        const previousImage = previousImages.get(product.url);
+        if (previousImage) product.image = previousImage;
+        problems.push(`${product.name}: image download failed (${error.message})${previousImage ? '; kept the previous image' : ''}.`);
       }
     }
   }
@@ -798,27 +849,54 @@ try {
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
 
-  let existingCatalog = null;
-  if (sourceOnly) {
-    const selectedSource = sources.find((source) => source.brand.toLowerCase() === sourceOnly.toLowerCase());
-    if (!selectedSource) throw new Error(`Unknown product source "${sourceOnly}". Available: ${sources.map((source) => source.brand).join(', ')}`);
+  if (sourceOnly && !sources.some((source) => source.brand.toLowerCase() === sourceOnly.toLowerCase())) {
+    throw new Error(`Unknown product source "${sourceOnly}". Available: ${sources.map((source) => source.brand).join(', ')}`);
+  }
+  // The previous catalog is the baseline for spotting broken sources, and its
+  // data is kept for any source that fails.
+  let existingCatalog = { whey: [], sunscreen: [] };
+  try {
+    existingCatalog = JSON.parse(await readFile(outputPath, 'utf8')).products;
+  } catch (error) {
+    if (sourceOnly) throw new Error(`Could not load the existing catalog for a source-only update: ${error.message}`);
+    console.warn(`No previous catalog to compare against: ${error.message}`);
+  }
+  const problems = [];
+  // Runs one source's scraper. When it throws or returns far fewer products
+  // than before, the previous products are kept and the problem is reported.
+  async function refreshSource(label, previous, fetchProducts) {
+    let found = [];
     try {
-      existingCatalog = JSON.parse(await readFile(outputPath, 'utf8')).products;
+      found = await fetchProducts();
     } catch (error) {
-      throw new Error(`Could not load the existing catalog for a source-only update: ${error.message}`);
+      problems.push(`${label}: scraping failed (${error.message}).`);
     }
+    const reason = shrinkage(found.length, previous.length);
+    if (!reason) return { products: found, kept: false };
+    problems.push(`${label}: ${reason}; kept the previous products. The site may have changed or blocked the scraper.`);
+    return { products: previous, kept: true };
   }
 
   const catalog = { whey: [], sunscreen: [] };
   const catalogProducts = new Map();
+  // Products of failed sources, copied from the previous catalog unchanged.
+  const keptWhey = [];
   for (const source of sources.filter((item) => !sourceOnly || item.brand.toLowerCase() === sourceOnly.toLowerCase())) {
     if (source.category && source.category !== 'whey') continue;
     const searchUrls = source.searchUrls || [source.searchUrl];
-    let sourceProductCount = 0;
-    for (const [index, searchUrl] of searchUrls.entries()) {
-      const products = await scrapeSearch(page, { ...source, searchUrl }, 'whey');
-      sourceProductCount += products.length;
-      for (const product of products) {
+    const previous = existingCatalog.whey.filter((product) => product.brand === source.brand);
+    const result = await refreshSource(source.brand, previous, async () => {
+      const found = [];
+      for (const [index, searchUrl] of searchUrls.entries()) {
+        found.push(...await scrapeSearch(page, { ...source, searchUrl }, 'whey'));
+        if (index < searchUrls.length - 1) await page.waitForTimeout(1200);
+      }
+      return found;
+    });
+    console.log(`Found ${result.kept ? 0 : result.products.length} whey listings from ${source.brand}.`);
+    if (result.kept) keptWhey.push(...result.products);
+    else {
+      for (const product of result.products) {
         const normalizedName = product.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
         const identity = `${product.brand}:${normalizedName}:${product.amount}${product.unit}`;
         const existing = catalogProducts.get(identity);
@@ -828,28 +906,34 @@ try {
           if (!existing.imageUrl && product.imageUrl) existing.imageUrl = product.imageUrl;
         }
       }
-      if (index < searchUrls.length - 1) await page.waitForTimeout(1200);
     }
-    console.log(`Found ${sourceProductCount} whey listings from ${source.brand}.`);
     await page.waitForTimeout(1200);
   }
   const refreshedWhey = [...catalogProducts.values()];
-  catalog.whey = sourceOnly
-    ? [...(existingCatalog?.whey || []).filter((product) => product.brand.toLowerCase() !== sourceOnly.toLowerCase()), ...refreshedWhey]
-    : refreshedWhey;
+  catalog.whey = [
+    ...(sourceOnly ? existingCatalog.whey.filter((product) => product.brand.toLowerCase() !== sourceOnly.toLowerCase()) : []),
+    ...keptWhey,
+    ...refreshedWhey,
+  ];
 
   if (!sourceOnly || sources.find((source) => source.brand.toLowerCase() === sourceOnly.toLowerCase())?.category === 'sunscreen') {
     const sunscreenSource = sources.find((source) => source.category === 'sunscreen');
-    catalog.sunscreen = await scrapeLojaDoMecanicoSunscreens(page, sunscreenSource);
-    console.log(`Found ${catalog.sunscreen.length} Nutriex sunscreen listings from Loja do Mecânico.`);
+    const previousFrom = (store) => existingCatalog.sunscreen.filter((product) => product.store === store);
+    const nutriex = await refreshSource(sunscreenSource.brand, previousFrom(sunscreenSource.brand),
+      () => scrapeLojaDoMecanicoSunscreens(page, sunscreenSource));
+    catalog.sunscreen = nutriex.products;
+    console.log(`Found ${nutriex.kept ? 0 : nutriex.products.length} Nutriex sunscreen listings from Loja do Mecânico.`);
     for (const vtexSource of vtexSunscreenSources) {
       const source = { ...vtexSource, brand: vtexSource.store, vtex: true };
-      const found = (await fetchVtexSunscreens(source)).map((raw) => toProduct(raw, 'sunscreen', source)).filter((product) => product?.url);
-      catalog.sunscreen.push(...found);
-      console.log(`Found ${found.length} sunscreen listings from ${source.store}.`);
+      const result = await refreshSource(source.store, previousFrom(source.store), async () => (await fetchVtexSunscreens(source))
+        .map((raw) => toProduct(raw, 'sunscreen', source)).filter((product) => product?.url));
+      catalog.sunscreen.push(...result.products);
+      console.log(`Found ${result.kept ? 0 : result.products.length} sunscreen listings from ${source.store}.`);
     }
+    keepPreviousReviews(catalog.sunscreen, existingCatalog.sunscreen);
+    await addMercadoLivreData(catalog.sunscreen, existingCatalog.sunscreen);
   } else {
-    catalog.sunscreen = existingCatalog?.sunscreen || [];
+    catalog.sunscreen = existingCatalog.sunscreen;
   }
 
   if (catalog.whey.length === 0) {
@@ -857,7 +941,7 @@ try {
   }
 
   let imageOcrRecoveries = 0;
-  for (const product of (sourceOnly ? refreshedWhey : catalog.whey)) {
+  for (const product of refreshedWhey) {
     const detailsUrl = nutritionSourceUrl(product, catalog.whey);
     if (!detailsUrl) {
       product.carbohydrateGrams = null;
@@ -919,7 +1003,11 @@ try {
     throw new Error('No Nutriex sunscreen products were extracted. The store page may have changed or blocked the browser; existing catalog was left untouched.');
   }
 
-  const imageCount = await saveProductImages(catalog, context);
+  problems.push(...compareProducts(existingCatalog.whey, refreshedWhey));
+  problems.push(...compareProducts(existingCatalog.sunscreen, catalog.sunscreen));
+  const previousImages = new Map(Object.values(existingCatalog).flat()
+    .filter((product) => product.url && product.image).map((product) => [product.url, product.image]));
+  const imageCount = await saveProductImages(catalog, context, previousImages, problems);
   const output = {
     sources: [...sources.map(({ brand, origin }) => ({ brand, url: origin })),
       ...vtexSunscreenSources.map(({ store, origin }) => ({ brand: store, url: origin }))],
@@ -930,6 +1018,13 @@ try {
   await writeFile(outputPath, `${JSON.stringify(output, null, 2)}\n`, 'utf8');
   console.log(`Saved ${catalog.whey.length} whey products and ${imageCount} product images to the local catalog.`);
   console.log(`Recovered nutrition data from product images for ${imageOcrRecoveries} whey products.`);
+  if (problems.length) {
+    console.error(`\n${problems.length} problem(s) found. Review them before publishing:`);
+    for (const problem of problems) console.error(`  - ${problem}`);
+    process.exitCode = 1;
+  } else {
+    console.log('No problems found compared with the previous catalog.');
+  }
   console.log('Review the data, then commit and push it to publish the updated catalog.');
 } finally {
   if (nutritionOcrWorker) await nutritionOcrWorker.terminate();

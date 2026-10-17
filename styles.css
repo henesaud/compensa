@@ -95,6 +95,37 @@ select { appearance: none; min-width: 150px; border: 1px solid var(--field-borde
 .product-name { font: 700 14px/1.4 'Segoe UI', sans-serif; margin: 0; }
 .product-meta { margin: 8px 0 0; color: var(--brand-dark); font-size: 11px; font-weight: 700; }
 .product-meta span { color: var(--faint); padding: 0 4px; }
+.product-features { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+.product-features span { color: var(--faint); padding: 0 3px; }
+.details-button { display: inline-block; margin-top: 8px; border: 1px solid var(--field-border); border-radius: 6px; padding: 5px 10px; background: var(--tint); color: var(--ink); font-size: 11px; font-weight: 700; cursor: pointer; }
+.details-button:hover { border-color: var(--brand-dark); background: var(--tint-hover); }
+.details-button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.details-section + .details-section { margin-top: 18px; }
+.details-section h3 { margin: 0 0 8px; color: var(--brand-dark); font-size: 13px; }
+.details-list { display: grid; margin: 0; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; }
+.details-row { display: flex; justify-content: space-between; gap: 16px; padding: 8px 12px; font-size: 12px; }
+.details-row + .details-row { border-top: 1px solid var(--soft-line); }
+.details-row dt { color: var(--muted); }
+.details-row dd { margin: 0; color: var(--ink); font-weight: 700; text-align: right; }
+.details-row dd.details-missing { color: var(--faint); font-weight: 500; }
+.details-highlights { margin: 0; padding-left: 18px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.details-text { margin: 0 0 8px; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.details-text strong { color: var(--ink); }
+.details-section summary { color: var(--brand-dark); font-size: 13px; font-weight: 700; cursor: pointer; }
+.details-ingredients { margin-top: 8px; white-space: pre-line; font-size: 11px; }
+.review-summary { margin-top: 8px; }
+.review-rating { margin: 0; color: var(--muted); font-size: 11px; }
+.review-rating strong { color: var(--ink); }
+.review-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 0; padding: 0; list-style: none; }
+.review-tag { position: relative; padding: 2px 7px; border: 1px solid; border-radius: 999px; font-size: 10.5px; font-weight: 600; cursor: help; }
+.review-tag::after { content: attr(data-tip); position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 5; width: max-content; max-width: min(280px, 70vw); padding: 6px 8px; border-radius: 6px; background: var(--ink); color: var(--paper); font-size: 11px; font-weight: 500; line-height: 1.4; opacity: 0; pointer-events: none; transition: opacity .12s; }
+.review-tag:hover::after, .review-tag:focus::after { opacity: 1; }
+.review-tag:focus { outline: none; }
+.review-tag:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.review-tag span { opacity: .7; font-weight: 500; }
+.review-praise { border-color: #9cc9a5; background: #e8f5ea; color: #1f5a2c; }
+.review-complaint { border-color: var(--w-border); background: var(--w-bg); color: var(--w-text); }
+:root[data-theme="dark"] .review-praise { border-color: #2f6b3b; background: #16291a; color: #a7e0b2; }
 .product-link { display: inline-block; margin-top: 9px; color: var(--brand); font-size: 11px; font-weight: 600; text-decoration: none; }
 .product-link:hover { color: var(--brand-dark); text-decoration: underline; }
 .nutrition-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
