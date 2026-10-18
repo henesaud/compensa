@@ -10,9 +10,13 @@
 import { readFile, access } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const catalog = JSON.parse(await readFile(path.join(root, 'data', 'products.json'), 'utf8'));
+// The site's own price math and page list (catalog.js).
+const { getUnitPrice, productMeasure, CATEGORY_MEASURES, CATEGORY_PAGES } = vm.runInNewContext(
+  `${await readFile(path.join(root, 'catalog.js'), 'utf8')}\n({ getUnitPrice, productMeasure, CATEGORY_MEASURES, CATEGORY_PAGES });`, { URL, Intl });
 const findings = [];
 const report = (level, category, product, message) => findings.push({ level, category, product, message });
 
@@ -20,7 +24,14 @@ const grams = (product) => (['kg', 'l'].includes(product.unit) ? product.amount 
 const plain = (value) => String(value || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 // Plausible package sizes in g or ml, by category.
-const SIZE_RANGE = { whey: [20, 5000], creatine: [50, 2000], sunscreen: [8, 5000] };
+const SIZE_RANGE = {
+  whey: [20, 5000], creatine: [50, 2000], sunscreen: [8, 5000], laundry: [200, 10000], petFood: [80, 25000],
+  moisturizer: [10, 1000], vitaminC: [5, 200], peanutButter: [100, 3000],
+};
+// Categories whose amount is not the package size (fraldas, metros, proteína, EPA+DHA).
+const AMOUNT_IS_NOT_SIZE = new Set(['diapers', 'toiletPaper', 'proteinBars', 'omega3']);
+// Unit prices spread more where cheap and premium lines sell side by side.
+const WIDE_BAND = new Set(['sunscreen', 'petFood', 'diapers', 'moisturizer', 'vitaminC']);
 const PRICE_RANGE = { whey: [5, 2000], creatine: [5, 1000], sunscreen: [5, 1000] };
 
 // Every size written in the name ("30g", "1 Litro", "2,4kg"), in g or ml.
@@ -30,19 +41,6 @@ function sizesInName(name) {
     const value = Number(match[1].replace(',', '.'));
     return /^(kg|l|litro)/i.test(match[2]) ? value * 1000 : value;
   });
-}
-
-// Same as the site: the store or the Mercado Livre offer, whichever is cheaper.
-const bestPrice = (product) => Math.min(product.price, product.mercadoLivre?.offer?.price || Infinity);
-
-function unitPrice(product, category) {
-  if (category === 'whey') {
-    const serving = product.nutritionDetails?.servingMassGrams;
-    if (!(product.proteinGrams > 0) || !(serving > 0)) return null;
-    return (bestPrice(product) / (grams(product) * (product.proteinGrams / serving))) * 100;
-  }
-  if (category === 'creatine') return product.creatineShare > 0 ? (bestPrice(product) / (grams(product) * product.creatineShare)) * 100 : null;
-  return (bestPrice(product) / grams(product)) * 100;
 }
 
 const median = (values) => {
@@ -63,14 +61,14 @@ for (const [category, products] of Object.entries(catalog.products)) {
     if (product.image) {
       try { await access(path.join(root, product.image)); } catch { report('warn', category, label, `image file missing: ${product.image}`); }
     }
-    if (/\b(kit|combo|duo|\d+\s*x)\b/i.test(product.name) && !/total/i.test(product.name) && category !== 'sunscreen') report('warn', category, label, 'looks like a kit or bundle');
+    if (/\b(kit|combo|duo|\d+\s*x)\b/i.test(product.name) && !/total/i.test(product.name) && ['whey', 'creatine'].includes(category)) report('warn', category, label, 'looks like a kit or bundle');
 
     // Size and price
     const size = grams(product);
     const [minSize, maxSize] = SIZE_RANGE[category] || [1, 1e6];
     if (!(size > 0)) report('error', category, label, `no package size (${product.amount} ${product.unit})`);
     else if (size < minSize || size > maxSize) report('error', category, label, `implausible package size: ${product.amount} ${product.unit}`);
-    const nameSizes = sizesInName(product.name);
+    const nameSizes = AMOUNT_IS_NOT_SIZE.has(category) ? [] : sizesInName(product.name);
     if (nameSizes.length && size > 0 && !nameSizes.some((value) => Math.abs(value - size) < 0.5)
       && !nameSizes.some((value) => size % value === 0) && !/total/i.test(product.name)) {
       report('error', category, label, `size ${product.amount} ${product.unit} is not the one in the name (${nameSizes.join(', ')})`);
@@ -111,14 +109,14 @@ for (const [category, products] of Object.entries(catalog.products)) {
   // Unit prices far from the category's median are usually a misread size or price.
   const groups = new Map();
   for (const product of products) {
-    const value = unitPrice(product, category);
+    const value = getUnitPrice(product, category);
     if (!Number.isFinite(value)) continue;
-    const group = category === 'sunscreen' ? (product.unit === 'g' ? 'g' : 'ml') : 'all';
+    const group = CATEGORY_MEASURES[category] ? productMeasure(product) : category === 'diapers' ? product.type : 'all';
     if (!groups.has(group)) groups.set(group, []);
     groups.get(group).push({ product, value });
   }
   // Sunscreens range from 4 l bulk refills to 14 g sticks, so they get a wider band.
-  const band = category === 'sunscreen' ? 15 : 8;
+  const band = WIDE_BAND.has(category) ? 15 : 8;
   for (const [group, items] of groups) {
     const middle = median(items.map((item) => item.value));
     for (const { product, value } of items) {
@@ -139,11 +137,11 @@ if (process.argv.includes('--site')) {
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
   try {
-    await page.goto('http://localhost:8001/', { waitUntil: 'networkidle' });
+    await page.goto(`http://localhost:${process.env.PORT || 8001}/`, { waitUntil: 'networkidle' });
     await page.waitForSelector('.product-card', { timeout: 10000 });
     for (const category of Object.keys(catalog.products)) {
-      await page.click(`[data-category="${category}"]`);
-      await page.waitForTimeout(300);
+      await page.goto(`http://localhost:${process.env.PORT || 8001}${CATEGORY_PAGES[category].path}`, { waitUntil: 'networkidle' });
+      await page.waitForSelector('.product-card', { timeout: 10000 }).catch(() => {});
       const count = await page.locator('.product-card').count();
       const missing = await page.locator('.unit-price', { hasText: '—' }).count();
       if (!count) report('error', category, 'site', 'tab shows no products');

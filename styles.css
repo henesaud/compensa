@@ -75,8 +75,16 @@ main { width: min(100% - 40px, 1080px); margin: 44px auto 64px; }
 .section-heading h1 { font: 700 30px/1.15 'Segoe UI', sans-serif; letter-spacing: -1.1px; margin: 0; }
 .demo-note { color: var(--muted); font-size: 11px; white-space: nowrap; margin: 0 0 3px; }
 .demo-note span { color: #d39e34; font-size: 9px; margin-right: 5px; }
-.category-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--line); margin-top: 24px; }
-.category-button { color: var(--muted); cursor: pointer; background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 12px 14px; font-size: 13px; font-weight: 600; margin-bottom: -1px; text-align: center; text-decoration: none; }
+.category-groups { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 22px; }
+.group-button { color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px; font-size: 12px; font-weight: 600; text-decoration: none; }
+.group-button:hover { color: var(--brand); border-color: var(--brand); }
+.group-button.is-active { color: var(--white); background: var(--brand-dark); border-color: var(--brand-dark); }
+.group-button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+/* Tabs scroll sideways when they don't fit. */
+.category-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--line); margin-top: 12px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.category-tabs::-webkit-scrollbar { display: none; }
+.category-button[hidden] { display: none; }
+.category-button { color: var(--muted); cursor: pointer; background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 12px 14px; font-size: 13px; font-weight: 600; margin-bottom: -1px; text-align: center; text-decoration: none; white-space: nowrap; flex: none; }
 .category-button:hover { color: var(--brand); }
 .category-button.is-active { color: var(--brand-dark); border-color: var(--brand-dark); background: var(--tint); }
 .category-button:focus-visible, select:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
@@ -162,6 +170,11 @@ select { appearance: none; min-width: 150px; border: 1px solid var(--field-borde
 .review-summary { margin-top: 8px; }
 .review-rating { margin: 0; color: var(--muted); font-size: 11px; }
 .review-rating strong { color: var(--ink); }
+.product-meta .fact-tip { position: relative; color: inherit; padding: 0; text-decoration: underline dotted; text-underline-offset: 2px; cursor: help; }
+.fact-tip::after { content: attr(data-tip); position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 5; width: max-content; max-width: min(280px, 70vw); padding: 6px 8px; border-radius: 6px; background: var(--ink); color: var(--paper); font-size: 11px; font-weight: 500; line-height: 1.4; white-space: normal; opacity: 0; pointer-events: none; transition: opacity .12s; }
+.fact-tip:hover::after, .fact-tip:focus::after { opacity: 1; }
+.fact-tip:focus { outline: none; }
+.fact-tip:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .review-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 0; padding: 0; list-style: none; }
 .review-tag { position: relative; padding: 2px 7px; border: 1px solid; border-radius: 999px; font-size: 10.5px; font-weight: 600; cursor: help; }
 .review-tag::after { content: attr(data-tip); position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 5; width: max-content; max-width: min(280px, 70vw); padding: 6px 8px; border-radius: 6px; background: var(--ink); color: var(--paper); font-size: 11px; font-weight: 500; line-height: 1.4; opacity: 0; pointer-events: none; transition: opacity .12s; }
@@ -312,8 +325,10 @@ select { appearance: none; min-width: 150px; border: 1px solid var(--field-borde
   .header-tools .header-note { display: none; }
   .comparison { padding: 20px 14px; border-radius: 12px; }
   .section-heading h1 { font-size: 25px; }
-  .category-tabs { margin-top: 18px; }
-  .category-button { flex: 1; }
+  .category-groups { margin-top: 16px; gap: 5px; }
+  .group-button { padding: 5px 10px; }
+  /* A fade on the right shows there are more tabs to scroll to. */
+  .category-tabs.has-more { -webkit-mask-image: linear-gradient(to right, #000 82%, transparent); mask-image: linear-gradient(to right, #000 82%, transparent); }
   .filter-panel { padding: 14px 0 16px; }
   .filter-controls { gap: 12px 10px; }
   .filter-control select { padding: 10px 30px 10px 10px; background-position: right 10px center; }

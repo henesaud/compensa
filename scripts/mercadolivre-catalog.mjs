@@ -1,6 +1,6 @@
-// Looks up sunscreens in the Mercado Livre product catalog by barcode to read
-// the attributes it lists (water resistance, oil free, tint, kids...), and the
-// cheapest trustworthy offer for that catalog product. Search, single
+// Looks up products in the Mercado Livre product catalog by barcode to read
+// the attributes it lists (for sunscreens: water resistance, oil free, tint,
+// kids...), and the cheapest trustworthy offer for that catalog product. Search, single
 // listings and reviews are blocked for apps like ours (403); a catalog
 // product's list of offers is not.
 //
@@ -66,6 +66,13 @@ export async function fetchCatalogProduct(token, barcode, spf) {
     return !Number.isFinite(spf) || !catalogSpf || catalogSpf === spf;
   });
   return match ? withDetails(token, match) : null;
+}
+
+// The catalog product with this barcode as { id, name, attributes }, without
+// the extra request for its features.
+export async function findCatalogProduct(token, barcode) {
+  const match = (await catalogSearch(token, { product_identifier: barcode }))[0];
+  return match ? { id: match.id, name: match.name, attributes: attributesOf(match) } : null;
 }
 
 const plain = (value) => String(value || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();

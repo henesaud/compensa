@@ -47,14 +47,17 @@ async function fetchWithRetry(url) {
   }
 }
 
-export async function searchStore(origin, query) {
+// VTEX stops paging at 2,500 results, so maxPages goes up to 50.
+export async function searchStore(origin, query, { maxPages = MAX_PAGES, filter } = {}) {
   const results = [];
-  for (let page = 0; page < MAX_PAGES; page += 1) {
+  for (let page = 0; page < maxPages; page += 1) {
     const from = page * PAGE_SIZE;
-    const url = `${origin}/api/catalog_system/pub/products/search?ft=${encodeURIComponent(query)}&_from=${from}&_to=${from + PAGE_SIZE - 1}`;
+    const url = `${origin}/api/catalog_system/pub/products/search?ft=${encodeURIComponent(query)}${filter ? `&fq=${encodeURIComponent(filter)}` : ''}&_from=${from}&_to=${from + PAGE_SIZE - 1}`;
     const response = await fetchWithRetry(url);
     if (!response.ok) throw new Error(`HTTP ${response.status} from ${url}`);
-    const batch = await response.json();
+    // Some stores leave raw tabs and line breaks inside strings, which JSON
+    // forbids; outside strings they are plain whitespace.
+    const batch = JSON.parse((await response.text()).replace(/[\u0000-\u001f]/g, ' '));
     results.push(...batch);
     if (batch.length < PAGE_SIZE) break;
   }

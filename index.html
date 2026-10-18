@@ -4,13 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#f4edec">
-    <meta name="description" content="Compare preços por peso ou volume e encontre o melhor custo-benefício.">
+    <meta name="description" content="Compare preços por quantidade: suplementos, cuidados com a pele, fraldas, produtos de casa e ração. Encontre o melhor custo-benefício.">
     <title>Compensa? — compare preços</title>
     <meta property="og:type" content="website">
     <meta property="og:locale" content="pt_BR">
     <meta property="og:site_name" content="Compensa?">
     <meta property="og:title" content="Compensa? — compare preços">
-    <meta property="og:description" content="Compare whey protein, creatina e protetor solar pelo preço por quantidade e encontre o melhor custo-benefício.">
+    <meta property="og:description" content="Compare suplementos, protetor solar, hidratante, fraldas, papel higiênico, lava-roupas e ração pelo preço por quantidade.">
     <meta property="og:image" content="/og-image.png">
     <meta name="twitter:card" content="summary_large_image">
     <link rel="canonical" href="https://compensaprecos.com.br/">
@@ -46,9 +46,9 @@
         });
       })();
     </script>
-    <link rel="stylesheet" href="styles.css?v=36">
-    <script src="catalog.js?v=1" defer></script>
-    <script src="script.js?v=39" defer></script>
+    <link rel="stylesheet" href="styles.css?v=37">
+    <script src="catalog.js?v=2" defer></script>
+    <script src="script.js?v=40" defer></script>
   </head>
   <body>
     <header class="site-header">
@@ -69,10 +69,27 @@
           <p class="demo-note" id="catalog-status">Carregando catálogo...</p>
         </div>
 
-        <nav class="category-tabs" aria-label="Categorias">
-          <a class="category-button is-active" href="/whey" data-category="whey" aria-current="page">Whey protein</a>
-          <a class="category-button" href="/protetor-solar" data-category="sunscreen">Protetor solar</a>
-          <a class="category-button" href="/creatina" data-category="creatine">Creatina</a>
+        <nav class="category-nav" aria-label="Categorias">
+          <div class="category-groups">
+            <a class="group-button is-active" href="/whey" data-group="supplements">Suplementos</a>
+            <a class="group-button" href="/protetor-solar" data-group="care">Cuidados</a>
+            <a class="group-button" href="/fraldas" data-group="home">Casa e bebê</a>
+            <a class="group-button" href="/racao" data-group="pet">Pet</a>
+          </div>
+          <div class="category-tabs">
+            <a class="category-button is-active" href="/whey" data-category="whey" data-group="supplements" aria-current="page">Whey protein</a>
+            <a class="category-button" href="/creatina" data-category="creatine" data-group="supplements">Creatina</a>
+            <a class="category-button" href="/barra-de-proteina" data-category="proteinBars" data-group="supplements">Barra de proteína</a>
+            <a class="category-button" href="/omega-3" data-category="omega3" data-group="supplements">Ômega 3</a>
+            <a class="category-button" href="/pasta-de-amendoim" data-category="peanutButter" data-group="supplements">Pasta de amendoim</a>
+            <a class="category-button" href="/protetor-solar" data-category="sunscreen" data-group="care" hidden>Protetor solar</a>
+            <a class="category-button" href="/hidratante" data-category="moisturizer" data-group="care" hidden>Hidratante</a>
+            <a class="category-button" href="/vitamina-c" data-category="vitaminC" data-group="care" hidden>Vitamina C</a>
+            <a class="category-button" href="/fraldas" data-category="diapers" data-group="home" hidden>Fraldas</a>
+            <a class="category-button" href="/papel-higienico" data-category="toiletPaper" data-group="home" hidden>Papel higiênico</a>
+            <a class="category-button" href="/lava-roupas" data-category="laundry" data-group="home" hidden>Lava-roupas</a>
+            <a class="category-button" href="/racao" data-category="petFood" data-group="pet" hidden>Ração</a>
+          </div>
         </nav>
 
         <div class="filter-panel">

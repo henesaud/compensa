@@ -1,17 +1,18 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { chromium } from 'playwright';
 import { createWorker } from 'tesseract.js';
 import { fetchVtexSunscreens, vtexSunscreenSources } from './vtex-sunscreens.mjs';
-import { fetchBestOffer, fetchCatalogProduct, mercadoLivreToken, searchCatalogProduct } from './mercadolivre-catalog.mjs';
+import { fetchBestOffer, fetchCatalogProduct, findCatalogProduct, mercadoLivreToken, searchCatalogProduct } from './mercadolivre-catalog.mjs';
 import { productThumbnail } from './product-image.mjs';
 import { compareProducts, shrinkage } from './update-checks.mjs';
 import { fatDetails } from './nutrition-table.mjs';
 import { labelInfo } from './whey-label.mjs';
 import { fetchVtexSupplements } from './vtex-supplements.mjs';
 import { fetchShopifySupplements } from './shopify-supplements.mjs';
+import { STORE_CATEGORIES, fetchStoreCategory, samePackage, tidyBrands } from './store-categories.mjs';
 import { creatineShareFromText, matchesCategory } from './supplement-rules.mjs';
 import { agreeingReading, hasSaturatedFat, mergeMissingRows, ocrNutritionTable, sameReading, parseOcrNutritionTable, summarizeOcrNutrition, validateOcrNutrition } from './nutrition-ocr.mjs';
 
@@ -319,6 +320,71 @@ async function addMercadoLivreData(sunscreens, previous) {
     matched += 1;
   }
   console.log(`Found Mercado Livre catalog data for ${matched} of ${sunscreens.length} sunscreens, with an offer for ${offers}.`);
+}
+
+// Categories read from store catalogs (scripts/store-categories.mjs). With
+// --source, only the named category or store is refreshed; the rest keeps the
+// previous catalog. A store that fails keeps its previous products.
+async function refreshStoreCategories(page, catalog, existingCatalog, problems, refreshSource) {
+  const only = sourceOnly?.toLowerCase();
+  const readPage = async (url) => {
+    const nutrition = await scrapeNutrition(page, url);
+    return {
+      text: `${nutrition.nutritionTable?.text || ''}\n${nutrition.pageText || ''}`,
+      proteinGrams: nutrition.proteinGrams,
+      servingMassGrams: nutritionDetails(nutrition.nutritionTable)?.servingMassGrams,
+    };
+  };
+  for (const [category, rule] of Object.entries(STORE_CATEGORIES)) {
+    const previous = existingCatalog[category] || [];
+    const wholeCategory = !only || only === category.toLowerCase();
+    const stores = rule.stores.filter((store) => wholeCategory || only === store.store.toLowerCase());
+    catalog[category] = previous.filter((product) => !stores.some((store) => store.store === product.store));
+    for (const store of stores) {
+      const unread = [];
+      const result = await refreshSource(`${store.store} (${category})`, previous.filter((product) => product.store === store.store),
+        () => fetchStoreCategory(category, store, { unread, readPage }));
+      catalog[category].push(...result.products);
+      console.log(`Found ${result.kept ? 0 : result.products.length} ${category} listings from ${store.store}.`);
+      if (unread.length) console.warn(`Size or content not found for ${unread.length} ${category} listings from ${store.store}, e.g.: ${unread.slice(0, 5).join('; ')}`);
+    }
+    if (rule.reviews) keepPreviousReviews(catalog[category], previous);
+    tidyBrands(catalog[category]);
+    await addMercadoLivreOffers(category, catalog[category].filter((product) => stores.some((store) => store.store === product.store)));
+  }
+}
+
+// The cheapest trustworthy Mercado Livre offer for store-category products,
+// found by barcode. The catalog product must be the same package (count or
+// size in its name), or the offer would be for a kit or another size. Offers
+// are only kept from this run; without credentials there are none.
+let mercadoLivreSession;
+async function addMercadoLivreOffers(category, products) {
+  if (!products.length) return;
+  mercadoLivreSession ||= mercadoLivreToken().then((token) => ({ token, sellers: new Map() }))
+    .catch((error) => (console.warn(`Mercado Livre login failed: ${error.message}`), { token: null }));
+  const { token, sellers } = await mercadoLivreSession;
+  if (!token) return;
+  let matched = 0;
+  let offers = 0;
+  for (const product of products) {
+    delete product.mercadoLivre;
+    if (!product.barcode) continue;
+    try {
+      const match = await findCatalogProduct(token, product.barcode);
+      if (!match || !samePackage(category, product, match.name)) continue;
+      product.mercadoLivre = { id: match.id, name: match.name };
+      matched += 1;
+      const offer = await fetchBestOffer(token, match.id, { storePrice: product.price, sellers });
+      if (offer) {
+        product.mercadoLivre.offer = offer;
+        offers += 1;
+      }
+    } catch (error) {
+      console.warn(`Could not read Mercado Livre data for ${product.name}: ${error.message}`);
+    }
+  }
+  console.log(`Found the same package on Mercado Livre for ${matched} of ${products.length} ${category} products, with an offer for ${offers}.`);
 }
 
 function isDirectProductUrl(value, source) {
@@ -972,6 +1038,16 @@ async function saveProductImages(catalog, context, previousImages, problems) {
   for (const products of Object.values(catalog)) {
     for (const product of products) {
       if (!product.imageUrl) continue;
+      const slug = product.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
+      const hash = createHash('sha256').update(product.imageUrl).digest('hex').slice(0, 10);
+      const filename = `${slug}-${hash}.webp`;
+      // The file name comes from the image address, so a saved file is current.
+      if (await access(path.join(imageDirectory, filename)).then(() => true, () => false)) {
+        product.image = `assets/products/${filename}`;
+        delete product.imageUrl;
+        continue;
+      }
       try {
         const referer = product.url ? `${new URL(product.url).origin}/` : undefined;
         const response = await context.request.get(product.imageUrl, {
@@ -985,10 +1061,6 @@ async function saveProductImages(catalog, context, previousImages, problems) {
         const body = await response.body();
         if (body.length > 10 * 1024 * 1024) throw new Error('Image exceeds the 10 MB limit');
 
-        const slug = product.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
-        const hash = createHash('sha256').update(product.imageUrl).digest('hex').slice(0, 10);
-        const filename = `${slug}-${hash}.webp`;
         await writeFile(path.join(imageDirectory, filename), await productThumbnail(body));
         product.image = `assets/products/${filename}`;
         delete product.imageUrl;
@@ -1012,14 +1084,18 @@ try {
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
 
-  if (sourceOnly && !sources.some((source) => source.brand.toLowerCase() === sourceOnly.toLowerCase())) {
-    throw new Error(`Unknown product source "${sourceOnly}". Available: ${sources.map((source) => source.brand).join(', ')}`);
+  const storeCategoryNames = [...Object.keys(STORE_CATEGORIES),
+    ...new Set(Object.values(STORE_CATEGORIES).flatMap((rule) => rule.stores.map((store) => store.store)))];
+  const known = [...sources.map((source) => source.brand), ...storeCategoryNames];
+  if (sourceOnly && !known.some((name) => name.toLowerCase() === sourceOnly.toLowerCase())) {
+    throw new Error(`Unknown product source "${sourceOnly}". Available: ${known.join(', ')}`);
   }
   // The previous catalog is the baseline for spotting broken sources, and its
   // data is kept for any source that fails.
-  let existingCatalog = { whey: [], sunscreen: [], creatine: [] };
+  const emptyCatalog = () => Object.fromEntries(['whey', 'sunscreen', 'creatine', ...Object.keys(STORE_CATEGORIES)].map((category) => [category, []]));
+  let existingCatalog = emptyCatalog();
   try {
-    existingCatalog = { creatine: [], ...JSON.parse(await readFile(outputPath, 'utf8')).products };
+    existingCatalog = { ...emptyCatalog(), ...JSON.parse(await readFile(outputPath, 'utf8')).products };
   } catch (error) {
     if (sourceOnly) throw new Error(`Could not load the existing catalog for a source-only update: ${error.message}`);
     console.warn(`No previous catalog to compare against: ${error.message}`);
@@ -1040,7 +1116,7 @@ try {
     return { products: previous, kept: true };
   }
 
-  const catalog = { whey: [], sunscreen: [], creatine: [] };
+  const catalog = emptyCatalog();
   const catalogProducts = new Map();
   // Products of failed sources, copied from the previous catalog unchanged.
   const keptWhey = [];
@@ -1173,6 +1249,7 @@ try {
   }
 
   catalog.creatine = await refreshCreatine(page, existingCatalog.creatine, problems, refreshSource);
+  await refreshStoreCategories(page, catalog, existingCatalog, problems, refreshSource);
 
   if (!sourceOnly && !catalog.sunscreen.length) {
     throw new Error('No Nutriex sunscreen products were extracted. The store page may have changed or blocked the browser; existing catalog was left untouched.');
@@ -1181,18 +1258,21 @@ try {
   problems.push(...compareProducts(existingCatalog.whey, refreshedWhey));
   problems.push(...compareProducts(existingCatalog.sunscreen, catalog.sunscreen));
   problems.push(...compareProducts(existingCatalog.creatine, catalog.creatine));
+  for (const category of Object.keys(STORE_CATEGORIES)) problems.push(...compareProducts(existingCatalog[category], catalog[category]));
   const previousImages = new Map(Object.values(existingCatalog).flat()
     .filter((product) => product.url && product.image).map((product) => [product.url, product.image]));
   const imageCount = await saveProductImages(catalog, context, previousImages, problems);
   const output = {
-    sources: [...sources.map(({ brand, origin }) => ({ brand, url: origin })),
-      ...vtexSunscreenSources.map(({ store, origin }) => ({ brand: store, url: origin }))],
+    sources: [...new Map([...sources.map(({ brand, origin }) => ({ brand, url: origin })),
+      ...vtexSunscreenSources.map(({ store, origin }) => ({ brand: store, url: origin })),
+      ...Object.values(STORE_CATEGORIES).flatMap((rule) => rule.stores.map(({ store, origin }) => ({ brand: store, url: origin })))]
+      .map((source) => [source.url, source])).values()],
     updatedAt: new Date().toISOString(),
     products: catalog,
   };
   await mkdir(path.dirname(outputPath), { recursive: true });
   await writeFile(outputPath, `${JSON.stringify(output, null, 2)}\n`, 'utf8');
-  console.log(`Saved ${catalog.whey.length} whey products, ${catalog.creatine.length} creatines and ${imageCount} product images to the local catalog.`);
+  console.log(`Saved ${Object.entries(catalog).map(([category, products]) => `${products.length} ${category}`).join(', ')} and ${imageCount} product images to the local catalog.`);
   console.log(`Recovered nutrition data from product images for ${imageOcrRecoveries} whey products.`);
   if (problems.length) {
     console.error(`\n${problems.length} problem(s) found. Review them before publishing:`);

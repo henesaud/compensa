@@ -1,4 +1,5 @@
 const categoryButtons = document.querySelectorAll('.category-button');
+const groupButtons = document.querySelectorAll('.group-button');
 const filterControls = document.querySelector('#filter-controls');
 const productGrid = document.querySelector('#product-grid');
 const resultCount = document.querySelector('#result-count');
@@ -13,7 +14,7 @@ const guideDialog = document.querySelector('#guide-dialog');
 const categorySummary = document.querySelector('#category-summary');
 let activeCategory = categoryForPath(location.pathname) || 'whey';
 let catalogData = null;
-let products = { whey: [], sunscreen: [], creatine: [] };
+let products = Object.fromEntries(Object.keys(CATEGORY_PAGES).map((category) => [category, []]));
 let visibleProducts = [];
 
 function formatRatio(value) {
@@ -317,6 +318,85 @@ function reviewSummary(product) {
     </div>`;
 }
 
+// Categories read from store catalogs (scripts/store-categories.mjs): extra
+// filters (`order` sorts the options), the label of the type filter (null
+// hides it) and the facts shown on each card.
+const SEAL_HELP = {
+  IFOS: 'Certificação independente (Nutrasource) que testa cada lote: quantidade de EPA e DHA, oxidação e contaminantes como mercúrio.',
+  'Friend of the Sea': 'Selo de pesca sustentável: o peixe vem de estoques que não estão sendo esgotados.',
+  'MEG-3': 'Marca de óleo de peixe concentrado da DSM, fornecedora com controle de qualidade próprio.',
+  GOED: 'O fabricante segue o padrão de qualidade da associação mundial de produtores de ômega 3 (limites de oxidação e contaminantes).',
+};
+const OIL_FORM_HELP = {
+  TG: 'Triglicerídeo: a forma natural do óleo de peixe (ou reconstituída), bem absorvida.',
+  EE: 'Etil éster: forma usada para concentrar o óleo, mais barata. É absorvida melhor junto com uma refeição.',
+};
+const TIER_HELP = {
+  Standard: 'Linha de entrada: mais barata, com ingredientes mais simples e às vezes corantes.',
+  Premium: 'Linha intermediária, com ingredientes de melhor qualidade que a standard.',
+  'Premium especial': 'Entre premium e super premium.',
+  'Super premium': 'Linha com ingredientes de maior qualidade e digestibilidade, sem corantes artificiais na maioria.',
+};
+
+// A filter with `options` lists fixed choices (for yes/no fields).
+const SUGAR_FILTER = { key: 'sugarFree', label: 'Açúcar', options: [{ value: 'true', label: 'Sem açúcar' }] };
+const STORE_CATEGORY_FILTERS = {
+  diapers: [{ key: 'size', label: 'Tamanho', order: ['RN', 'PP', 'P', 'P/M', 'M', 'M/G', 'G', 'G/XG', 'XG', 'XXG', 'XXXG'] }],
+  petFood: [{ key: 'species', label: 'Animal' }, { key: 'age', label: 'Idade', order: ['Filhote', 'Adulto', 'Sênior'] },
+    { key: 'breedSize', label: 'Porte', order: ['Pequeno', 'Médio', 'Grande'] },
+    { key: 'tier', label: 'Linha', order: ['Standard', 'Premium', 'Premium especial', 'Super premium'], help: TIER_HELP }],
+  omega3: [{ key: 'seals', label: 'Selo', help: SEAL_HELP }, { key: 'oilForm', label: 'Forma', help: OIL_FORM_HELP }],
+  moisturizer: [{ key: 'actives', label: 'Ativo' }],
+  proteinBars: [SUGAR_FILTER],
+  peanutButter: [SUGAR_FILTER],
+};
+const TYPE_LABELS = { toiletPaper: 'Folha', laundry: null, petFood: null, omega3: null };
+const amountText = (value) => plainAmount.format(value);
+// Explanations shown on hover or tap for card facts that aren't obvious.
+const ACTIVE_HELP = {
+  Ureia: 'Hidrata e amacia a pele. Até 10% para pele seca; 20% ou mais para calos e pele muito grossa.',
+  'Ácido hialurônico': 'Segura água na pele. Hidratação leve, boa também para pele oleosa.',
+  Ceramidas: 'Repõem a barreira natural da pele. Boas para pele seca, sensível ou com dermatite.',
+  Niacinamida: 'Vitamina B3: ajuda a controlar oleosidade, poros e manchas.',
+  'Pantenol (B5)': 'Acalma e ajuda a pele irritada a se recuperar.',
+  Retinol: 'Antissinais. Pode irritar no começo; use à noite e protetor solar de dia.',
+};
+const fact = (text, tip) => (text ? { text, tip } : null);
+const STORE_CATEGORY_DETAILS = {
+  diapers: { facts: (product) => [product.size && `Tamanho ${product.size}`,
+    fact(product.type, product.type === 'Infantil calça' ? 'Tipo calça (pants): veste como roupa. Prática para bebês que já engatinham ou andam.' : undefined)] },
+  toiletPaper: { facts: (product) => [
+    fact(product.type !== 'Não informada' && `Folha ${product.type.toLowerCase()}`, 'Folha dupla ou tripla vem em rolos mais curtos, então por metro a folha simples quase sempre sai mais barata. Compare dentro do mesmo tipo.'),
+    `${amountText(product.amount)} m no pacote`] },
+  laundry: { facts: (product) => [product.type,
+    fact(product.concentrated && 'Concentrado', 'Usa menos produto por lavagem. Confira a dose no rótulo: o preço por litro sozinho faz o concentrado parecer mais caro.')] },
+  petFood: { facts: (product) => [product.species, product.age, product.breedSize && `Porte ${product.breedSize.join(', ').toLowerCase()}`,
+    fact(product.neutered && 'Castrados', 'Fórmula para animais castrados, com menos calorias, porque eles tendem a engordar.'),
+    fact(product.tier, TIER_HELP[product.tier]),
+    fact(product.proteinPercent && `${amountText(product.proteinPercent)}% de proteína`, 'Proteína bruta informada pelo fabricante na descrição. Rações de filhote e de gato costumam ter mais.'),
+    fact(product.noDye && 'Sem corante', 'Pela ficha do produto na loja.'), fact(product.noGmo && 'Sem transgênico', 'Pela ficha do produto na loja.')] },
+  moisturizer: { facts: (product) => [product.type, ...(product.actives || []).map((active) => fact(active, ACTIVE_HELP[active.replace(/ \d+%$/, '')]))], reviews: true },
+  vitaminC: { facts: (product) => [product.type,
+    product.vitaminCPercent && `${amountText(product.vitaminCPercent)}% de vitamina C`], reviews: true },
+  peanutButter: { facts: (product) => [product.type, fact(product.sugarFree && 'Sem açúcar', 'Pelo nome do produto. Pode ter adoçante.')] },
+  proteinBars: { facts: (product) => [
+    fact(`${amountText(product.proteinPerBarGrams)} g de proteína por barra`, 'Do nome, da descrição ou da tabela nutricional da loja.'),
+    fact(product.sugarFree && 'Sem açúcar', 'Pelo nome do produto. Costuma ter adoçantes ou polióis, que em excesso podem soltar o intestino.')] },
+  omega3: { facts: (product) => [
+    Number.isFinite(product.epaMgPerCapsule) ? `EPA ${amountText(product.epaMgPerCapsule)} mg + DHA ${amountText(product.dhaMgPerCapsule)} mg por cápsula` : `${amountText(product.epaDhaMgPerCapsule)} mg de EPA+DHA por cápsula`,
+    fact(product.oilForm && `Forma ${product.oilForm}`, OIL_FORM_HELP[product.oilForm]),
+    ...(product.seals || []).map((seal) => fact(`Selo ${seal}`, SEAL_HELP[seal]))] },
+};
+
+function storeCategoryDetails(product, category) {
+  const details = STORE_CATEGORY_DETAILS[category];
+  // A fact is text, or { text, tip } with an explanation on hover or tap.
+  const facts = details.facts(product).filter((item) => item && (typeof item === 'string' || item.text))
+    .map((item) => (typeof item === 'string' || !item.tip ? escapeHtml(item.text ?? item)
+      : `<span class="fact-tip" tabindex="0" data-tip="${escapeHtml(item.tip)}">${escapeHtml(item.text)}</span>`));
+  return `${facts.length ? `<p class="product-meta">${facts.join(' <span>·</span> ')}</p>` : ''}${details.reviews ? reviewSummary(product) : ''}`;
+}
+
 // What each product type means; the type comes from words in the name.
 const TYPE_HELP = {
   Concentrado: 'O mais comum e barato. Tem de 70% a 80% de proteína e mantém um pouco de gordura e lactose.',
@@ -390,6 +470,25 @@ const SORTS = {
     price: { label: 'Preço', value: buyPrice },
   },
 };
+const UNIT_SORT_LABELS = {
+  diapers: 'Preço/fralda', toiletPaper: 'Preço/10 m', laundry: 'Preço por quantidade', petFood: 'Preço/kg', moisturizer: 'Preço por quantidade',
+  vitaminC: 'Preço por quantidade', peanutButter: 'Preço/kg', proteinBars: 'Preço/100 g proteína', omega3: 'Preço/g EPA+DHA',
+};
+for (const [category, label] of Object.entries(UNIT_SORT_LABELS)) {
+  SORTS[category] = {
+    unitPrice: { label, value: (product) => product.unitPrice },
+    ...(category === 'proteinBars' ? { protein: { label: 'Proteína/barra', value: (product) => product.proteinPerBarGrams, descending: true } } : {}),
+    ...(category === 'omega3' ? {
+      omega: { label: 'EPA+DHA/cápsula', value: (product) => product.epaDhaMgPerCapsule, descending: true },
+      epa: { label: 'EPA/cápsula', value: (product) => product.epaMgPerCapsule, descending: true },
+      dha: { label: 'DHA/cápsula', value: (product) => product.dhaMgPerCapsule, descending: true },
+    } : {}),
+    ...(category === 'petFood' ? { protein: { label: 'Proteína %', value: (product) => product.proteinPercent, descending: true } } : {}),
+    ...(category === 'vitaminC' ? { strength: { label: 'Concentração', value: (product) => product.vitaminCPercent, descending: true } } : {}),
+    ...(['moisturizer', 'vitaminC'].includes(category) ? { rating: { label: 'Nota', value: (product) => product.reviews?.average, descending: true } } : {}),
+    price: { label: 'Preço', value: buyPrice },
+  };
+}
 // Products are ordered by each chosen criterion in turn; a later one only
 // breaks ties left by the earlier ones.
 const defaultSort = () => [{ key: 'unitPrice', descending: false }];
@@ -412,11 +511,23 @@ function renderFilters() {
     filterControls.replaceChildren();
     return;
   }
-  const brands = [...new Set(categoryProducts.map((product) => product.brand))].sort();
+  const brands = [...new Set(categoryProducts.map((product) => product.brand))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
   const types = [...new Set(categoryProducts.map((product) => product.type))].sort();
   let markup = addFilter('Marca', 'brand', brands, 'Todas');
 
-  markup += addFilter('Tipo', 'type', types.map((type) => ({ value: type, label: type, help: TYPE_HELP[type] })));
+  const typeLabel = TYPE_LABELS[activeCategory] === undefined ? 'Tipo' : TYPE_LABELS[activeCategory];
+  if (typeLabel && types.length > 1) markup += addFilter(typeLabel, 'type', types.map((type) => ({ value: type, label: type, help: TYPE_HELP[type] })));
+  for (const filter of STORE_CATEGORY_FILTERS[activeCategory] || []) {
+    if (filter.options) {
+      if (categoryProducts.some((product) => product[filter.key])) markup += addFilter(filter.label, filter.key, filter.options, 'Qualquer');
+      continue;
+    }
+    const values = [...new Set(categoryProducts.flatMap((product) => product[filter.key] ?? []))]
+      .sort((a, b) => (filter.order ? filter.order.indexOf(a) - filter.order.indexOf(b) : a.localeCompare(b, 'pt-BR')));
+    if (values.length > 1) markup += addFilter(filter.label, filter.key, values.map((value) => ({ value: String(value), label: String(value), help: filter.help?.[value] })));
+  }
+  const stores = [...new Set(categoryProducts.map((product) => product.store).filter(Boolean))].sort();
+  if (stores.length > 1 && activeCategory !== 'sunscreen') markup += addFilter('Loja', 'store', stores, 'Todas');
   if (activeCategory === 'whey') {
     const restrictions = WHEY_RESTRICTIONS.filter((restriction) => categoryProducts.some(restriction.test));
     if (restrictions.length) markup += addFilter('Restrição', 'restriction', restrictions, 'Nenhuma');
@@ -425,12 +536,12 @@ function renderFilters() {
     const spfs = [...new Set(categoryProducts.map((product) => product.spf).filter(Number.isFinite))].sort((a, b) => a - b);
     markup += addFilter('FPS', 'spf', spfs.map(String));
     markup += addFilter('Característica', 'feature', FEATURES, 'Qualquer');
-    // Prices per ml and per g can't be compared, so only one measure shows.
-    markup += `<div class="filter-control"><span class="filter-label" id="filter-measure-label">Medida</span>
-      <div class="filter-segmented" role="radiogroup" aria-labelledby="filter-measure-label">
-        <label title="Loções, fluidos, sprays"><input type="radio" name="measure" data-filter="measure" value="ml" checked><span>ml</span></label>
-        <label title="Cremes, géis, bastões"><input type="radio" name="measure" data-filter="measure" value="g"><span>g</span></label>
-      </div></div>`;
+  }
+  // Prices per ml and per g can't be compared, so only one measure shows.
+  if (CATEGORY_MEASURES[activeCategory]) {
+    const options = CATEGORY_MEASURES[activeCategory].map((measure, index) => `<label title="${measure.title}"><input type="radio" name="measure" data-filter="measure" value="${measure.value}"${index ? '' : ' checked'}><span>${measure.label}</span></label>`).join('');
+    markup += `<div class="filter-control"><span class="filter-label" id="filter-measure-label">${activeCategory === 'laundry' ? 'Tipo' : 'Medida'}</span>
+      <div class="filter-segmented" role="radiogroup" aria-labelledby="filter-measure-label">${options}</div></div>`;
   }
   markup += `<div class="filter-control sort-control"><span class="sort-label">Ordenar por</span><div class="sort-buttons" role="group" aria-label="Ordenar por">${renderSortButtons()}</div></div>`;
 
@@ -446,7 +557,8 @@ function renderProducts() {
       const matches = (value) => {
         if (key === 'feature') return FEATURES.find((feature) => feature.value === value).test(product);
         if (key === 'restriction') return WHEY_RESTRICTIONS.find((restriction) => restriction.value === value).test(product);
-        return String(key === 'measure' ? sunscreenMeasure(product) : product[key]) === value;
+        if (key === 'measure') return productMeasure(product) === value;
+        return Array.isArray(product[key]) ? product[key].includes(value) : String(product[key]) === value;
       };
       return MATCH_ALL.has(key) ? values.every(matches) : values.some(matches);
     }))
@@ -526,7 +638,7 @@ function renderProducts() {
             <p class="product-brand">${escapeHtml(product.brand)}${product.store ? ` · ${escapeHtml(product.store)}` : ''}</p>
             <h3 class="product-name">${escapeHtml(product.name)}</h3>
             ${productLink}
-            ${activeCategory === 'creatine' ? creatineDetails(product, productIndex) : activeCategory === 'whey' ? `<div class="nutrition-actions">
+            ${STORE_CATEGORY_DETAILS[activeCategory] ? storeCategoryDetails(product, activeCategory) : activeCategory === 'creatine' ? creatineDetails(product, productIndex) : activeCategory === 'whey' ? `<div class="nutrition-actions">
               <button class="nutrition-info-button${warnings['carb-protein'] ? ` warning-level-${warnings['carb-protein'].level}` : ''}" type="button" data-nutrition-detail="carb-protein" data-product-index="${productIndex}" aria-haspopup="dialog">
                 <span>${warningMark('carb-protein')}Carbo/proteína</span><strong>${ratio}</strong>
               </button>
@@ -547,7 +659,7 @@ function renderProducts() {
         <div class="price-block">
           <div class="unit-price">${Number.isFinite(product.unitPrice) ? currency.format(product.unitPrice) : '—'}</div>
           <div class="unit-caption"${product.nutritionDataSource === 'product image OCR' ? ' title="O peso da porção ou a proteína foi lido automaticamente da imagem do produto."' : ''}>${Number.isFinite(product.unitPrice) ? `por ${unitLabel}${product.paymentCondition && !viaMercadoLivre ? ` · ${escapeHtml(product.paymentCondition)}` : ''}${product.nutritionDataSource === 'product image OCR' ? ' · imagem' : ''}` : `por ${unitLabel}`}</div>
-          <div class="package-price"><span>${formatAmount(product)}${viaMercadoLivre ? ' · Mercado Livre' : ''}</span><strong>${currency.format(buyPrice(product))}</strong></div>
+          <div class="package-price"><span>${formatAmount(product, activeCategory)}${viaMercadoLivre ? ' · Mercado Livre' : ''}</span><strong>${currency.format(buyPrice(product))}</strong></div>
           ${otherOffer}
           <label class="compare-toggle"><input type="checkbox" data-compare="${escapeHtml(compareKey(product))}"${compareSelection.includes(compareKey(product)) ? ' checked' : ''}> Comparar</label>
         </div>
@@ -566,7 +678,7 @@ async function loadCatalog() {
     // can't be compared, so they are not shown. They stay in the catalog in
     // case a later update reads their data.
     catalogData = catalog;
-    products = { whey: comparableProducts(catalog, 'whey'), sunscreen: comparableProducts(catalog, 'sunscreen'), creatine: comparableProducts(catalog, 'creatine') };
+    products = Object.fromEntries(Object.keys(CATEGORY_PAGES).map((category) => [category, comparableProducts(catalog, category)]));
     if (catalog.updatedAt) {
       document.querySelector('#footer-updated').textContent = `em ${new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long' }).format(new Date(catalog.updatedAt))}`;
     }
@@ -586,9 +698,19 @@ async function loadCatalog() {
 
 // Each category has its own address; switching changes it without a reload,
 // since the catalog is already loaded.
+// Tabs that don't fit scroll sideways; a fade shows while more are hidden.
+const categoryTabs = document.querySelector('.category-tabs');
+const updateTabsFade = () => categoryTabs.classList.toggle('has-more',
+  categoryTabs.scrollLeft + categoryTabs.clientWidth < categoryTabs.scrollWidth - 4);
+categoryTabs.addEventListener('scroll', updateTabsFade, { passive: true });
+window.addEventListener('resize', updateTabsFade);
+
 function markCategory(category, page) {
+  const group = groupOf(category).key;
+  groupButtons.forEach((item) => item.classList.toggle('is-active', item.dataset.group === group));
   categoryButtons.forEach((item) => {
     const selected = item.dataset.category === category;
+    item.hidden = item.dataset.group !== group;
     item.classList.toggle('is-active', selected);
     if (selected) item.setAttribute('aria-current', 'page');
     else item.removeAttribute('aria-current');
@@ -597,6 +719,8 @@ function markCategory(category, page) {
   document.querySelector('meta[name="description"]').content = page.description;
   document.querySelector('#comparison-title').textContent = page.heading;
   guideButton.hidden = category !== 'sunscreen';
+  categoryTabs.querySelector('.is-active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  updateTabsFade();
 }
 
 function showCategory(category, page = CATEGORY_PAGES[category]) {
@@ -610,13 +734,14 @@ function showCategory(category, page = CATEGORY_PAGES[category]) {
   if (catalogData) categorySummary.innerHTML = renderCategorySummary(category, catalogData);
 }
 
-categoryButtons.forEach((button) => {
-  button.addEventListener('click', (event) => {
+[...groupButtons, ...categoryButtons].forEach((link) => {
+  link.addEventListener('click', (event) => {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
-    if (button.dataset.category === activeCategory && location.pathname === button.pathname) return;
-    history.pushState(null, '', button.href);
-    showCategory(button.dataset.category);
+    const category = categoryForPath(link.pathname);
+    if (category === activeCategory && location.pathname === link.pathname) return;
+    history.pushState(null, '', link.href);
+    showCategory(category);
   });
 });
 window.addEventListener('popstate', () => {
@@ -746,7 +871,7 @@ function compareRows(category, items) {
     { label: 'Preço por quantidade', value: (product) => getUnitPrice(product, category), better: 'low',
       text: (product) => `${currency.format(getUnitPrice(product, category))} por ${unitLabel(product)}` },
     { label: 'Preço', value: buyPrice,
-      text: (product) => `${currency.format(buyPrice(product))} (${formatAmount(product)})${mercadoLivreIsCheaper(product) ? ' no Mercado Livre' : ''}` },
+      text: (product) => `${currency.format(buyPrice(product))} (${formatAmount(product, category)})${mercadoLivreIsCheaper(product) ? ' no Mercado Livre' : ''}` },
     { label: 'Tipo', text: (product) => product.type },
   ];
   if (category === 'whey') {
@@ -773,7 +898,29 @@ function compareRows(category, items) {
     ];
   }
   // Prices per ml and per g can't be ranked against each other.
-  const sameMeasure = new Set(items.map(sunscreenMeasure)).size === 1;
+  const sameMeasure = new Set(items.map(productMeasure)).size === 1;
+  if (STORE_CATEGORY_DETAILS[category]) {
+    return [
+      { ...common[0], better: sameMeasure ? 'low' : undefined },
+      common[1],
+      { label: 'Loja', text: (product) => product.store },
+      ...(TYPE_LABELS[category] === null ? [] : [{ ...common[2], label: TYPE_LABELS[category] || 'Tipo' }]),
+      ...(STORE_CATEGORY_FILTERS[category] || []).filter((filter) => !filter.options).map((filter) => ({ label: filter.label, text: (product) => [product[filter.key]].flat().filter(Boolean).join(', ') })),
+      ...(category === 'proteinBars' ? [{ label: 'Proteína por barra', value: (product) => product.proteinPerBarGrams, better: 'high', text: (product) => `${plainNumber.format(product.proteinPerBarGrams)} g` }] : []),
+      ...(category === 'omega3' ? [
+        { label: 'EPA+DHA por cápsula', value: (product) => product.epaDhaMgPerCapsule, better: 'high', text: (product) => `${plainNumber.format(product.epaDhaMgPerCapsule)} mg` },
+        { label: 'EPA por cápsula', value: (product) => product.epaMgPerCapsule, better: 'high', text: (product) => (Number.isFinite(product.epaMgPerCapsule) ? `${plainNumber.format(product.epaMgPerCapsule)} mg` : '') },
+        { label: 'DHA por cápsula', value: (product) => product.dhaMgPerCapsule, better: 'high', text: (product) => (Number.isFinite(product.dhaMgPerCapsule) ? `${plainNumber.format(product.dhaMgPerCapsule)} mg` : '') },
+        { label: 'Cápsulas por porção', text: (product) => String(product.capsulesPerServing || '') },
+      ] : []),
+      ...(category === 'petFood' ? [{ label: 'Proteína', value: (product) => product.proteinPercent, better: 'high', text: (product) => (product.proteinPercent ? `${plainNumber.format(product.proteinPercent)}%` : '') },
+        { label: 'Sem corante', text: (product) => (product.noDye ? 'Sim' : '') }, { label: 'Sem transgênico', text: (product) => (product.noGmo ? 'Sim' : '') }] : []),
+      ...(category === 'vitaminC' ? [{ label: 'Vitamina C', value: (product) => product.vitaminCPercent, better: 'high', text: (product) => (product.vitaminCPercent ? `${plainNumber.format(product.vitaminCPercent)}%` : '') }] : []),
+      ...(['proteinBars', 'peanutButter'].includes(category) ? [{ label: 'Sem açúcar', text: (product) => (product.sugarFree ? 'Sim' : '') }] : []),
+      ...(STORE_CATEGORY_DETAILS[category].reviews ? [{ label: 'Nota na loja', value: (product) => product.reviews?.average, better: 'high',
+        text: (product) => (product.reviews?.count ? `${rating.format(product.reviews.average)} ★ (${product.reviews.count.toLocaleString('pt-BR')})` : '') }] : []),
+    ];
+  }
   return [
     { ...common[0], better: sameMeasure ? 'low' : undefined },
     common[1], common[2],

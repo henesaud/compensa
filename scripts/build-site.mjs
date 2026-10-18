@@ -21,8 +21,8 @@ const index = await readFile(path.join(root, 'index.html'), 'utf8');
 
 // catalog.js holds the page texts and the price math the site uses, so the
 // pages are prerendered with the same code.
-const { ROOT_PAGE, CATEGORY_PAGES, renderCategorySummary } = vm.runInNewContext(
-  `${await readFile(path.join(root, 'catalog.js'), 'utf8')}\n({ ROOT_PAGE, CATEGORY_PAGES, renderCategorySummary });`, { URL, Intl });
+const { ROOT_PAGE, CATEGORY_PAGES, renderCategorySummary, groupOf } = vm.runInNewContext(
+  `${await readFile(path.join(root, 'catalog.js'), 'utf8')}\n({ ROOT_PAGE, CATEGORY_PAGES, renderCategorySummary, groupOf });`, { URL, Intl });
 
 function replaceOnce(html, pattern, replacement) {
   if (!pattern.test(html)) throw new Error(`index.html no longer matches ${pattern}`);
@@ -42,9 +42,11 @@ function renderPage(page, category) {
   if (page !== ROOT_PAGE) html = replaceOnce(html, /<meta property="og:description" content="[^"]*">/, `<meta property="og:description" content="${escapeAttribute(page.description)}">`);
   html = replaceOnce(html, /<link rel="canonical" href="[^"]*">/, `<link rel="canonical" href="https://compensaprecos.com.br${page.path}">`);
   html = replaceOnce(html, /(<h1 id="comparison-title">)[^<]*(<\/h1>)/, `$1${page.heading}$2`);
-  html = replaceOnce(html, /<a class="category-button[^"]*" href="([^"]+)" data-category="(\w+)"[^>]*>/g, (_, href, tab) => (tab === category
-    ? `<a class="category-button is-active" href="${href}" data-category="${tab}" aria-current="page">`
-    : `<a class="category-button" href="${href}" data-category="${tab}">`));
+  const group = groupOf(category).key;
+  html = replaceOnce(html, /<a class="group-button[^"]*" href="([^"]+)" data-group="(\w+)">/g, (_, href, tabGroup) => (
+    `<a class="group-button${tabGroup === group ? ' is-active' : ''}" href="${href}" data-group="${tabGroup}">`));
+  html = replaceOnce(html, /<a class="category-button[^"]*" href="([^"]+)" data-category="(\w+)" data-group="(\w+)"[^>]*>/g, (_, href, tab, tabGroup) => (
+    `<a class="category-button${tab === category ? ' is-active' : ''}" href="${href}" data-category="${tab}" data-group="${tabGroup}"${tab === category ? ' aria-current="page"' : ''}${tabGroup === group ? '' : ' hidden'}>`));
   if (category === 'sunscreen') html = replaceOnce(html, /<button class="guide-button" id="guide-button" type="button" hidden>/, '<button class="guide-button" id="guide-button" type="button">');
   return replaceOnce(html, /(<section class="category-summary" id="category-summary"[^>]*>)(<\/section>)/, `$1${renderCategorySummary(category, catalog)}$2`);
 }

@@ -1,16 +1,16 @@
 # Compensa?
 
-Static price comparison site (whey protein, creatine and sunscreen), in Portuguese.
+Static price comparison site, in Portuguese: supplements (whey, creatine, protein bars, omega 3, peanut butter), skin care (sunscreen, moisturizer, vitamin C), home and baby (diapers, toilet paper, laundry detergent) and pet food.
 
 ## Layout
 
 - Site: `index.html`, `privacidade.html`, `catalog.js` (price math, product link check and page texts, no DOM), `script.js`, `styles.css`, `data/products.json`, `assets/products/`.
-- Category pages: `/whey`, `/creatina`, `/protetor-solar` (`CATEGORY_PAGES` in `catalog.js`). `make build` writes each from `index.html` with its own title, description, canonical, heading and a prerendered top-10 summary (running `catalog.js` in Node), plus the sitemap. On the site, the tabs are links that switch category without a reload (`history.pushState`). `make serve` serves the three paths with `index.html`.
-- Scraper (not published): `scripts/update-products.mjs` (Playwright + Tesseract OCR, no LLMs), `scripts/vtex-sunscreens.mjs` (VTEX catalog API), `scripts/nutrition-*.mjs`, `scripts/sunscreen-reviews.mjs`, `scripts/mercadolivre-catalog.mjs`, `scripts/whey-label.mjs`, `scripts/supplement-rules.mjs`, `scripts/check-catalog.mjs`, `scripts/vtex-supplements.mjs`, `scripts/shopify-supplements.mjs`.
+- Category pages: one per category (`CATEGORY_PAGES` in `catalog.js`, e.g. `/whey`, `/racao`), grouped in tabs by `CATEGORY_GROUPS`; the tab links in `index.html` must match. `make build` writes each from `index.html` with its own title, description, canonical, heading and a prerendered top-10 summary (running `catalog.js` in Node), plus the sitemap. On the site, the tabs are links that switch category without a reload (`history.pushState`). `make serve` serves any path without a file extension with `index.html`.
+- Scraper (not published): `scripts/update-products.mjs` (Playwright + Tesseract OCR, no LLMs), `scripts/vtex-sunscreens.mjs` (VTEX catalog API), `scripts/nutrition-*.mjs`, `scripts/sunscreen-reviews.mjs`, `scripts/mercadolivre-catalog.mjs`, `scripts/whey-label.mjs`, `scripts/supplement-rules.mjs`, `scripts/check-catalog.mjs`, `scripts/vtex-supplements.mjs`, `scripts/shopify-supplements.mjs`, `scripts/store-categories.mjs`.
 
 ## Commands
 
-- `make update-products`: refresh `data/products.json` and images. `SOURCE=<brand>` refreshes one source; any sunscreen source (e.g. `SOURCE="Loja do Mecânico"`) refreshes all sunscreen sources, their reviews and Mercado Livre data.
+- `make update-products`: refresh `data/products.json` and images. `SOURCE=<brand>` refreshes one source; any sunscreen source (e.g. `SOURCE="Loja do Mecânico"`) refreshes all sunscreen sources, their reviews and Mercado Livre data. For store categories, `SOURCE=<category key>` (e.g. `petFood`) refreshes one category and `SOURCE=<store>` (e.g. `Cobasi`) one store's categories.
 - `make serve`: local server on port 8001, no caching.
 - `make build`: copy only the public site into `dist/`.
 - `npm test`: OCR parser, review keyword and whey label tests.
@@ -35,6 +35,15 @@ Static price comparison site (whey protein, creatine and sunscreen), in Portugue
 - Reviews (`reviews`): unofficial, login-free widget APIs. Trustvox for Adcos (store id 719) and Dermage (106480), keyed by VTEX product id; Konfidency for Drogaria São Paulo (`drogariasaopaulo`), keyed by SKU id. The ids are in `vtexSunscreenSources`. The 150 most recent reviews are read and keyword-counted per trait (eyes stinging, sticky, oily, dry finish, white cast, pilling), with "yes" and negated "no" counted apart. Tags show at 3+ mentions. When a fetch fails, the previous run's reviews are kept.
 - Mercado Livre catalog (`mercadoLivre`): attributes such as water resistant, oil free, tinted, kids, eye area. Looked up by barcode, or by brand + SPF + size + name for stores without one (Nutriex). Needs a developer app (`client_credentials`, no user login) with `ML_CLIENT_ID` and `ML_CLIENT_SECRET` in `.env` (gitignored); without them, the previous data is kept. Mercado Livre search, single listings, shipping and reviews are blocked for this kind of app (403), but a catalog product's offers (`/products/{id}/items`) and seller reputation (`/users/{id}`) are not: `mercadoLivre.offer` holds the cheapest new, free-shipping offer from a green-rated seller, between a third and three times the store price, fetched fresh every run. The site uses whichever is cheaper, store or Mercado Livre, for the unit price and the main link, and shows the other under the price.
 - Logs to check after an update: "Could not read reviews…", "Kept previous reviews…", "Found Mercado Livre catalog data for X of Y sunscreens, with an offer for Z".
+
+## Store categories
+
+- Diapers, toilet paper, laundry detergent, pet food, moisturizer, vitamin C, peanut butter, protein bars and omega 3 come from VTEX store catalog APIs only (`STORE_CATEGORIES` in `scripts/store-categories.mjs`): each category lists its stores, search queries, name include/exclude patterns, and how to read the quantity it is compared by. The amount is saved in that unit (fraldas, metros, ml or g, g of protein, g of EPA+DHA); `CATEGORY_UNITS` in `catalog.js` gives the price per unit. Card facts and filters are in `STORE_CATEGORY_DETAILS` and `STORE_CATEGORY_FILTERS` in `script.js`.
+- Stores: Drogaria São Paulo and Pague Menos (diapers, omega 3, bars, skin care), Savegnago and Zona Sul (toilet paper, laundry, peanut butter), Cobasi (pet food, one product per bag size, `?skuId=` in the URL), Adcos and Dermage (skin care), the VTEX supplement brand stores (bars, omega 3).
+- Protein bars and omega 3 (`pageFallback`): when the API data has no protein per bar or EPA+DHA with the serving size in capsules, the product page is opened (the nutrition scrape) and read again. Omega 3 without a stated serving is left out rather than guessed. Moisturizer and vitamin C read reviews like sunscreen.
+- Metrics read per category (from the name, description, product page or the store's specification fields): omega 3 EPA and DHA per capsule, oil form (`oilForm`: TG or EE) and seals (`seals`: IFOS, Friend of the Sea, MEG-3, GOED); pet food tier (`tier`, Cobasi's "Tipo da Ração"), protein % (`proteinPercent`, from the description), `noDye`, `noGmo`; vitamin C concentration (`vitaminCPercent`); moisturizer actives (`actives`, from the name); bars and peanut butter `sugarFree`.
+- Mercado Livre (`mercadoLivre`, `{ id, name, offer }`): found by barcode like sunscreens, but only kept when the catalog product's name gives the same package (`samePackage`: same count of diapers, rolls, bars or capsules, or the same size within 2%), so kits and other sizes don't match. Same offer rules as sunscreens.
+- Logs to check: "Size or content not found for N <category> listings…" (listings of the category left out), "Found the same package on Mercado Livre for X of Y <category> products, with an offer for Z".
 
 ## Hosting
 
