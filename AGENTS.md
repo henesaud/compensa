@@ -4,7 +4,8 @@ Static price comparison site (whey protein, creatine and sunscreen), in Portugue
 
 ## Layout
 
-- Site: `index.html`, `privacidade.html`, `script.js`, `styles.css`, `data/products.json`, `assets/products/`.
+- Site: `index.html`, `privacidade.html`, `catalog.js` (price math, product link check and page texts, no DOM), `script.js`, `styles.css`, `data/products.json`, `assets/products/`.
+- Category pages: `/whey`, `/creatina`, `/protetor-solar` (`CATEGORY_PAGES` in `catalog.js`). `make build` writes each from `index.html` with its own title, description, canonical, heading and a prerendered top-10 summary (running `catalog.js` in Node), plus the sitemap. On the site, the tabs are links that switch category without a reload (`history.pushState`). `make serve` serves the three paths with `index.html`.
 - Scraper (not published): `scripts/update-products.mjs` (Playwright + Tesseract OCR, no LLMs), `scripts/vtex-sunscreens.mjs` (VTEX catalog API), `scripts/nutrition-*.mjs`, `scripts/sunscreen-reviews.mjs`, `scripts/mercadolivre-catalog.mjs`, `scripts/whey-label.mjs`, `scripts/supplement-rules.mjs`, `scripts/check-catalog.mjs`, `scripts/vtex-supplements.mjs`, `scripts/shopify-supplements.mjs`.
 
 ## Commands
@@ -17,7 +18,7 @@ Static price comparison site (whey protein, creatine and sunscreen), in Portugue
 
 ## Whey data
 
-- Stores (`sources` in `scripts/update-products.mjs`): brand stores only, since they publish the nutrition table. Growth, Max Titanium and Essential are scraped from listing pages; VTEX stores (`vtex: true`: Probiótica, Nutrify) via the catalog API; Shopify stores (`shopify: true`: True Source, Soldiers) via `/products.json`; others (Dux, Adaptogen, New Nutrition) from a listing page with a `productPath` pattern. A new store's product URL pattern must also go in `isDirectProductUrl` in `script.js`, or the site hides its products.
+- Stores (`sources` in `scripts/update-products.mjs`): brand stores only, since they publish the nutrition table. Growth, Max Titanium and Essential are scraped from listing pages; VTEX stores (`vtex: true`: Probiótica, Nutrify) via the catalog API; Shopify stores (`shopify: true`: True Source, Soldiers) via `/products.json`; others (Dux, Adaptogen, New Nutrition) from a listing page with a `productPath` pattern. A new store's product URL pattern must also go in `isDirectProductUrl` in `catalog.js`, or the site hides its products.
 - Kits, combos, bars, gainers and single sachets are skipped. Flavors sold as separate products with the same price and size are collapsed into one for API stores.
 - Drogaria São Paulo also sells whey but its pages have no nutrition table, so it isn't used for whey. Integralmedica's store has no public product API. Black Skull, Vitafor, Atlhetica, Dark Lab and FTW were tried and left out: their pages have no nutrition table the scraper can read (only images it could not OCR).
 - Label (`ingredients`, `allergens: { contains, mayContain }`, `gluten`, `lactose`): parsed from the product page text that the nutrition scrape already loads, by regex on the statements labels must print ("ALÉRGICOS: CONTÉM DERIVADOS DE…", "PODE CONTER…", "(NÃO) CONTÉM GLÚTEN", "CONTÉM LACTOSE"). `gluten`/`lactose` are `yes`, `no`, `depends` (flavors disagree) or null. Lactose counts only in upper case, so menus and Q&A don't match; Essential pages don't state it. A page that fails keeps the previous data.
@@ -44,7 +45,7 @@ Static price comparison site (whey protein, creatine and sunscreen), in Portugue
 
 ## Conventions
 
-- Bump `?v=N` on `styles.css` and `script.js` in `index.html` after changing them, so browsers stop using the cached copy.
+- Bump `?v=N` on `styles.css`, `catalog.js` and `script.js` in `index.html` after changing them, so browsers stop using the cached copy.
 - Google Analytics `G-VXZPZ6TDW4` loads directly (no cookie banner, by choice).
 - Keep every field in `data/products.json` (nutrition tables, OCR metadata, etc.) even if the site does not show it yet; it will be used later.
 - Product images are stored as 176 px WebP thumbnails (`scripts/product-image.mjs`); the site only shows them at 88 px or less.

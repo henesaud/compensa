@@ -46,8 +46,9 @@
         });
       })();
     </script>
-    <link rel="stylesheet" href="styles.css?v=35">
-    <script src="script.js?v=38" defer></script>
+    <link rel="stylesheet" href="styles.css?v=36">
+    <script src="catalog.js?v=1" defer></script>
+    <script src="script.js?v=39" defer></script>
   </head>
   <body>
     <header class="site-header">
@@ -68,11 +69,11 @@
           <p class="demo-note" id="catalog-status">Carregando catálogo...</p>
         </div>
 
-        <div class="category-tabs" role="group" aria-label="Escolha uma categoria">
-          <button class="category-button is-active" type="button" data-category="whey" aria-pressed="true">Whey protein</button>
-          <button class="category-button" type="button" data-category="sunscreen" aria-pressed="false">Protetor solar</button>
-          <button class="category-button" type="button" data-category="creatine" aria-pressed="false">Creatina</button>
-        </div>
+        <nav class="category-tabs" aria-label="Categorias">
+          <a class="category-button is-active" href="/whey" data-category="whey" aria-current="page">Whey protein</a>
+          <a class="category-button" href="/protetor-solar" data-category="sunscreen">Protetor solar</a>
+          <a class="category-button" href="/creatina" data-category="creatine">Creatina</a>
+        </nav>
 
         <div class="filter-panel">
           <div class="filter-controls" id="filter-controls"></div>
@@ -87,6 +88,8 @@
 
         <div class="product-grid" id="product-grid" aria-live="polite"></div>
       </section>
+
+      <section class="category-summary" id="category-summary" aria-label="Resumo"></section>
     </main>
 
     <footer class="site-footer">

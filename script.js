@@ -10,103 +10,11 @@ const nutritionDialogProduct = document.querySelector('#nutrition-dialog-product
 const nutritionDialogContent = document.querySelector('#nutrition-dialog-content');
 const guideButton = document.querySelector('#guide-button');
 const guideDialog = document.querySelector('#guide-dialog');
-let activeCategory = 'whey';
+const categorySummary = document.querySelector('#category-summary');
+let activeCategory = categoryForPath(location.pathname) || 'whey';
+let catalogData = null;
 let products = { whey: [], sunscreen: [], creatine: [] };
 let visibleProducts = [];
-
-const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-
-// Product page paths of stores without a shared platform pattern; keep in
-// sync with productPath in scripts/update-products.mjs.
-const OTHER_PRODUCT_PATHS = {
-  'duxhumanhealth.com': /^\/produtos\/[^/]+\/?$/,
-  'www.adaptogen.com.br': /^\/produto\/[^/]+$/,
-  'www.newnutrition.com.br': /^\/[^/]+\/p$/,
-};
-
-function isDirectProductUrl(value) {
-  try {
-    const url = new URL(value);
-    const growthProduct = url.hostname === 'www.gsuplementos.com.br' && /-p\d+$/i.test(url.pathname);
-    const maxTitaniumProduct = url.hostname === 'www.maxtitanium.com.br' && /\/p$/i.test(url.pathname);
-    const essentialNutritionProduct = url.hostname === 'www.essentialnutrition.com.br' && /^\/[^/]*whey[^/]*\/?$/i.test(url.pathname);
-    const lojaDoMecanicoProduct = url.hostname === 'www.lojadomecanico.com.br' && /^\/produto\/\d+\//.test(url.pathname);
-    const vtexProduct = ['www.lojaadcos.com.br', 'www.dermage.com.br', 'www.drogariasaopaulo.com.br', 'www.probiotica.com.br',
-      'www.nutrify.com.br', 'www.vitafor.com.br', 'www.atlheticanutrition.com.br', 'www.blackskullusa.com.br'].includes(url.hostname)
-      && /\/p$/i.test(url.pathname);
-    const shopifyProduct = ['vivatrue.com.br', 'soldiersnutrition.com.br', 'darklabsuplementos.com.br', 'ftw.com.br'].includes(url.hostname)
-      && /^\/products\/[^/]+$/.test(url.pathname);
-    const otherProduct = OTHER_PRODUCT_PATHS[url.hostname]?.test(url.pathname);
-    return growthProduct || maxTitaniumProduct || essentialNutritionProduct || lojaDoMecanicoProduct || vtexProduct || shopifyProduct || Boolean(otherProduct);
-  } catch {
-    return false;
-  }
-}
-
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
-}
-
-function normalizedAmount(product) {
-  return ['kg', 'l'].includes(product.unit) ? product.amount * 1000 : product.amount;
-}
-
-function proteinServingMass(product) {
-  const storedValue = product.nutritionDetails?.servingMassGrams;
-  if (Number.isFinite(storedValue) && storedValue > 0) return storedValue;
-  const portionRow = product.nutritionTable?.rows?.find((row) => /por[cç][aã]o/i.test(row.label || row.text || ''));
-  const match = String(portionRow?.label || portionRow?.text || '').match(/\b(\d+(?:[.,]\d+)?)\s*g\b/i);
-  return match ? Number(match[1].replace(',', '.')) : null;
-}
-
-// The cheapest way to buy the product: the store, or the best Mercado Livre
-// offer (new, free shipping, well-rated seller; scripts/mercadolivre-catalog.mjs).
-// Affiliate links made by hand in the Mercado Livre affiliate portal, keyed by
-// the offer's listing URL. An offer that changes listing falls back to its plain URL.
-const MERCADO_LIVRE_AFFILIATE_LINKS = {
-  'https://produto.mercadolivre.com.br/MLB-4251412720': 'https://meli.la/2DBiyUb',
-  'https://produto.mercadolivre.com.br/MLB-2670330699': 'https://meli.la/2P6Xdk8',
-  'https://produto.mercadolivre.com.br/MLB-7095989254': 'https://meli.la/1G6Ciez',
-};
-const mercadoLivreOffer = (product) => {
-  const offer = product.mercadoLivre?.offer;
-  const affiliateUrl = offer && MERCADO_LIVRE_AFFILIATE_LINKS[offer.url];
-  return affiliateUrl ? { ...offer, url: affiliateUrl, affiliate: true } : offer;
-};
-const mercadoLivreIsCheaper = (product) => mercadoLivreOffer(product)?.price < product.price;
-const buyPrice = (product) => (mercadoLivreIsCheaper(product) ? mercadoLivreOffer(product).price : product.price);
-
-// Price per 100 g of creatine itself: flavored powders carry less of it.
-const CREATINE_DOSE_GRAMS = 3;
-const creatineUnitPrice = (product) => (product.creatineShare > 0
-  ? (buyPrice(product) / (normalizedAmount(product) * product.creatineShare)) * 100 : null);
-
-function getUnitPrice(product, category = activeCategory) {
-  if (category === 'creatine') return creatineUnitPrice(product);
-  if (category === 'whey') {
-    const servingMass = proteinServingMass(product);
-    if (!Number.isFinite(product.proteinGrams) || product.proteinGrams <= 0
-      || !Number.isFinite(servingMass) || servingMass <= 0) return null;
-    const packageProtein = normalizedAmount(product) * (product.proteinGrams / servingMass);
-    return packageProtein > 0 ? (buyPrice(product) / packageProtein) * 100 : null;
-  }
-  const divisor = normalizedAmount(product);
-  const unitValue = buyPrice(product) / divisor;
-  // Sunscreens are sold by ml or g; both are compared per 100.
-  return ['ml', 'l'].includes(product.unit) || category === 'sunscreen' ? unitValue * 100 : unitValue * 1000;
-}
-
-// Sunscreens sold by volume and by weight are compared separately.
-const sunscreenMeasure = (product) => (product.unit === 'g' ? 'g' : 'ml');
-
-function getUnitLabel(category, product) {
-  if (category === 'creatine') return '100 g de creatina';
-  return category === 'whey' ? '100 g de proteína' : `100 ${sunscreenMeasure(product)}`;
-}
-
-function formatAmount(product) {
-  return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(product.amount)} ${product.unit}`;
-}
 
 function formatRatio(value) {
   return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(value * 10)}:10`;
@@ -657,9 +565,8 @@ async function loadCatalog() {
     // Products without a price per quantity (no protein or creatine data)
     // can't be compared, so they are not shown. They stay in the catalog in
     // case a later update reads their data.
-    const comparable = (category) => (Array.isArray(catalog.products?.[category]) ? catalog.products[category] : [])
-      .filter((product) => isDirectProductUrl(product.url) && Number.isFinite(getUnitPrice(product, category)));
-    products = { whey: comparable('whey'), sunscreen: comparable('sunscreen'), creatine: comparable('creatine') };
+    catalogData = catalog;
+    products = { whey: comparableProducts(catalog, 'whey'), sunscreen: comparableProducts(catalog, 'sunscreen'), creatine: comparableProducts(catalog, 'creatine') };
     if (catalog.updatedAt) {
       document.querySelector('#footer-updated').textContent = `em ${new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long' }).format(new Date(catalog.updatedAt))}`;
     }
@@ -668,6 +575,7 @@ async function loadCatalog() {
       : 'Catálogo ainda não atualizado';
     renderFilters();
     renderProducts();
+    categorySummary.innerHTML = renderCategorySummary(activeCategory, catalog);
   } catch (error) {
     catalogStatus.textContent = 'Catálogo não carregado';
     productGrid.innerHTML = '<p class="empty-state">Não foi possível carregar o catálogo. Inicie o site com <strong>make serve</strong> e abra <strong>http://localhost:8001</strong>.</p>';
@@ -676,21 +584,44 @@ async function loadCatalog() {
   }
 }
 
-categoryButtons.forEach((button) => {
-  button.addEventListener('click', () => {
-    activeCategory = button.dataset.category;
-    sortState = defaultSort();
-    categoryButtons.forEach((item) => {
-      const selected = item === button;
-      item.classList.toggle('is-active', selected);
-      item.setAttribute('aria-pressed', String(selected));
-    });
-    guideButton.hidden = activeCategory !== 'sunscreen';
-    compareSelection = [];
-    renderCompareBar();
-    renderFilters();
-    renderProducts();
+// Each category has its own address; switching changes it without a reload,
+// since the catalog is already loaded.
+function markCategory(category, page) {
+  categoryButtons.forEach((item) => {
+    const selected = item.dataset.category === category;
+    item.classList.toggle('is-active', selected);
+    if (selected) item.setAttribute('aria-current', 'page');
+    else item.removeAttribute('aria-current');
   });
+  document.title = page.title;
+  document.querySelector('meta[name="description"]').content = page.description;
+  document.querySelector('#comparison-title').textContent = page.heading;
+  guideButton.hidden = category !== 'sunscreen';
+}
+
+function showCategory(category, page = CATEGORY_PAGES[category]) {
+  activeCategory = category;
+  sortState = defaultSort();
+  markCategory(category, page);
+  compareSelection = [];
+  renderCompareBar();
+  renderFilters();
+  renderProducts();
+  if (catalogData) categorySummary.innerHTML = renderCategorySummary(category, catalogData);
+}
+
+categoryButtons.forEach((button) => {
+  button.addEventListener('click', (event) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    if (button.dataset.category === activeCategory && location.pathname === button.pathname) return;
+    history.pushState(null, '', button.href);
+    showCategory(button.dataset.category);
+  });
+});
+window.addEventListener('popstate', () => {
+  const category = categoryForPath(location.pathname);
+  showCategory(category || 'whey', category ? CATEGORY_PAGES[category] : ROOT_PAGE);
 });
 
 filterControls.addEventListener('change', () => {
@@ -768,6 +699,7 @@ document.querySelector('#guide-dialog-close').addEventListener('click', () => gu
 guideDialog.addEventListener('click', (event) => {
   if (event.target === guideDialog) guideDialog.close();
 });
+markCategory(activeCategory, categoryForPath(location.pathname) ? CATEGORY_PAGES[activeCategory] : ROOT_PAGE);
 renderFilters();
 loadCatalog();
 
