@@ -61,7 +61,18 @@ function proteinServingMass(product) {
 
 // The cheapest way to buy the product: the store, or the best Mercado Livre
 // offer (new, free shipping, well-rated seller; scripts/mercadolivre-catalog.mjs).
-const mercadoLivreOffer = (product) => product.mercadoLivre?.offer;
+// Affiliate links made by hand in the Mercado Livre affiliate portal, keyed by
+// the offer's listing URL. An offer that changes listing falls back to its plain URL.
+const MERCADO_LIVRE_AFFILIATE_LINKS = {
+  'https://produto.mercadolivre.com.br/MLB-4251412720': 'https://meli.la/2DBiyUb',
+  'https://produto.mercadolivre.com.br/MLB-2670330699': 'https://meli.la/2P6Xdk8',
+  'https://produto.mercadolivre.com.br/MLB-7095989254': 'https://meli.la/1G6Ciez',
+};
+const mercadoLivreOffer = (product) => {
+  const offer = product.mercadoLivre?.offer;
+  const affiliateUrl = offer && MERCADO_LIVRE_AFFILIATE_LINKS[offer.url];
+  return affiliateUrl ? { ...offer, url: affiliateUrl, affiliate: true } : offer;
+};
 const mercadoLivreIsCheaper = (product) => mercadoLivreOffer(product)?.price < product.price;
 const buyPrice = (product) => (mercadoLivreIsCheaper(product) ? mercadoLivreOffer(product).price : product.price);
 
@@ -563,14 +574,15 @@ function renderProducts() {
     const isBest = Number.isFinite(product.unitPrice) && product.unitPrice === bestUnitPrice;
     const offer = mercadoLivreOffer(product);
     const viaMercadoLivre = mercadoLivreIsCheaper(product);
+    const offerRel = offer?.affiliate ? 'sponsored noopener noreferrer' : 'noopener noreferrer';
     const productLink = viaMercadoLivre
-      ? `<a class="product-link" href="${escapeHtml(offer.url)}" target="_blank" rel="noopener noreferrer">Ver no Mercado Livre ↗</a>`
+      ? `<a class="product-link" href="${escapeHtml(offer.url)}" target="_blank" rel="${offerRel}">Ver no Mercado Livre ↗</a>`
       : `<a class="product-link" href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer">Ver produto ↗</a>`;
     // The other place to buy, shown under the price.
     const otherOffer = !offer ? ''
       : viaMercadoLivre
         ? `<a class="other-offer" href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer">Na loja: ${currency.format(product.price)} ↗</a>`
-        : `<a class="other-offer" href="${escapeHtml(offer.url)}" target="_blank" rel="noopener noreferrer">No Mercado Livre: ${currency.format(offer.price)} ↗</a>`;
+        : `<a class="other-offer" href="${escapeHtml(offer.url)}" target="_blank" rel="${offerRel}">No Mercado Livre: ${currency.format(offer.price)} ↗</a>`;
     const productImage = product.image
       ? `<img class="product-image" src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" loading="lazy" width="88" height="88">`
       : '';
