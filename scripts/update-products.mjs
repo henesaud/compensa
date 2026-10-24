@@ -148,6 +148,8 @@ function toProduct(raw, category, source) {
   const name = String(raw.name || '').replace(/\s+/g, ' ').trim();
   const normalizedName = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   if (category === 'whey' && !normalizedName.includes('whey')) return null;
+  // Kits and packs of several tubs can't be compared with a single one.
+  if (category === 'whey' && /\bkit\b|\bpack\b|combo|\bduo\b|\b\d+\s*x\b/i.test(name)) return null;
   if (category === 'creatine' && !matchesCategory(name, 'creatine')) return null;
   if (category === 'sunscreen' && (!(source.vtex || /nutriex/i.test(raw.brand || source.productBrand || source.brand)) || !parseSpf(name))) return null;
   const amount = parseAmount(name, category) || parseAmount(raw.text || '', category);

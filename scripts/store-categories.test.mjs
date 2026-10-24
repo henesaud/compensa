@@ -70,6 +70,7 @@ test('reads the vitamin C concentration', () => {
   assert.equal(vitaminCPercent('Sérum Facial Antioxidante com 15% de Vitamina C Pura'), 15);
   assert.equal(vitaminCPercent('Vitamina C 15 Aqua Stick'), 15);
   assert.equal(vitaminCPercent('Sérum Vult Vitamina C Pura 30g'), null);
+  assert.equal(vitaminCPercent('Gel Creme Facial Nivea Vitamina C 7 Em 1 Ultra leve 100g'), null);
 });
 
 test('matches Mercado Livre catalog products of the same package only', () => {

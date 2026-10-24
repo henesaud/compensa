@@ -48,22 +48,7 @@ function proteinServingMass(product) {
   return match ? Number(match[1].replace(',', '.')) : null;
 }
 
-// The cheapest way to buy the product: the store, or the best Mercado Livre
-// offer (new, free shipping, well-rated seller; scripts/mercadolivre-catalog.mjs).
-// Affiliate links made by hand in the Mercado Livre affiliate portal, keyed by
-// the offer's listing URL. An offer that changes listing falls back to its plain URL.
-const MERCADO_LIVRE_AFFILIATE_LINKS = {
-  'https://produto.mercadolivre.com.br/MLB-4251412720': 'https://meli.la/2DBiyUb',
-  'https://produto.mercadolivre.com.br/MLB-2670330699': 'https://meli.la/2P6Xdk8',
-  'https://produto.mercadolivre.com.br/MLB-7095989254': 'https://meli.la/1G6Ciez',
-};
-const mercadoLivreOffer = (product) => {
-  const offer = product.mercadoLivre?.offer;
-  const affiliateUrl = offer && MERCADO_LIVRE_AFFILIATE_LINKS[offer.url];
-  return affiliateUrl ? { ...offer, url: affiliateUrl, affiliate: true } : offer;
-};
-const mercadoLivreIsCheaper = (product) => mercadoLivreOffer(product)?.price < product.price;
-const buyPrice = (product) => (mercadoLivreIsCheaper(product) ? mercadoLivreOffer(product).price : product.price);
+const buyPrice = (product) => product.price;
 
 // Price per 100 g of creatine itself: flavored powders carry less of it.
 const CREATINE_DOSE_GRAMS = 3;
@@ -279,7 +264,7 @@ function renderCategorySummary(category, catalog) {
     .map((product) => ({ product, unitPrice: getUnitPrice(product, category) }))
     .sort((a, b) => a.unitPrice - b.unitPrice)
     .slice(0, 10);
-  const items = top.map(({ product, unitPrice }) => `<li><strong>${escapeHtml(product.name)}</strong> (${escapeHtml(product.brand)}, ${formatAmount(product, category)}): ${currency.format(unitPrice)} por ${getUnitLabel(category, product)} · ${currency.format(buyPrice(product))} ${mercadoLivreIsCheaper(product) ? 'no Mercado Livre' : product.store ? `na ${escapeHtml(product.store)}` : 'na loja'}</li>`).join('');
+  const items = top.map(({ product, unitPrice }) => `<li><strong>${escapeHtml(product.name)}</strong> (${escapeHtml(product.brand)}, ${formatAmount(product, category)}): ${currency.format(unitPrice)} por ${getUnitLabel(category, product)} · ${currency.format(buyPrice(product))} ${product.store ? `na ${escapeHtml(product.store)}` : 'na loja'}</li>`).join('');
   const updated = catalog.updatedAt
     ? ` Preços de ${new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long', timeZone: 'America/Sao_Paulo' }).format(new Date(catalog.updatedAt))}.`
     : '';

@@ -592,17 +592,7 @@ function renderProducts() {
   productGrid.innerHTML = filtered.map((product, productIndex) => {
     const unitLabel = getUnitLabel(activeCategory, product);
     const isBest = Number.isFinite(product.unitPrice) && product.unitPrice === bestUnitPrice;
-    const offer = mercadoLivreOffer(product);
-    const viaMercadoLivre = mercadoLivreIsCheaper(product);
-    const offerRel = offer?.affiliate ? 'sponsored noopener noreferrer' : 'noopener noreferrer';
-    const productLink = viaMercadoLivre
-      ? `<a class="product-link" href="${escapeHtml(offer.url)}" target="_blank" rel="${offerRel}">Ver no Mercado Livre ↗</a>`
-      : `<a class="product-link" href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer">Ver produto ↗</a>`;
-    // The other place to buy, shown under the price.
-    const otherOffer = !offer ? ''
-      : viaMercadoLivre
-        ? `<a class="other-offer" href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer">Na loja: ${currency.format(product.price)} ↗</a>`
-        : `<a class="other-offer" href="${escapeHtml(offer.url)}" target="_blank" rel="${offerRel}">No Mercado Livre: ${currency.format(offer.price)} ↗</a>`;
+    const productLink = `<a class="product-link" href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer">Ver produto ↗</a>`;
     const productImage = product.image
       ? `<img class="product-image" src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" loading="lazy" width="88" height="88">`
       : '';
@@ -658,9 +648,8 @@ function renderProducts() {
         </div>
         <div class="price-block">
           <div class="unit-price">${Number.isFinite(product.unitPrice) ? currency.format(product.unitPrice) : '—'}</div>
-          <div class="unit-caption"${product.nutritionDataSource === 'product image OCR' ? ' title="O peso da porção ou a proteína foi lido automaticamente da imagem do produto."' : ''}>${Number.isFinite(product.unitPrice) ? `por ${unitLabel}${product.paymentCondition && !viaMercadoLivre ? ` · ${escapeHtml(product.paymentCondition)}` : ''}${product.nutritionDataSource === 'product image OCR' ? ' · imagem' : ''}` : `por ${unitLabel}`}</div>
-          <div class="package-price"><span>${formatAmount(product, activeCategory)}${viaMercadoLivre ? ' · Mercado Livre' : ''}</span><strong>${currency.format(buyPrice(product))}</strong></div>
-          ${otherOffer}
+          <div class="unit-caption"${product.nutritionDataSource === 'product image OCR' ? ' title="O peso da porção ou a proteína foi lido automaticamente da imagem do produto."' : ''}>${Number.isFinite(product.unitPrice) ? `por ${unitLabel}${product.paymentCondition ? ` · ${escapeHtml(product.paymentCondition)}` : ''}${product.nutritionDataSource === 'product image OCR' ? ' · imagem' : ''}` : `por ${unitLabel}`}</div>
+          <div class="package-price"><span>${formatAmount(product, activeCategory)}</span><strong>${currency.format(buyPrice(product))}</strong></div>
           <label class="compare-toggle"><input type="checkbox" data-compare="${escapeHtml(compareKey(product))}"${compareSelection.includes(compareKey(product)) ? ' checked' : ''}> Comparar</label>
         </div>
       </article>`;
@@ -871,7 +860,7 @@ function compareRows(category, items) {
     { label: 'Preço por quantidade', value: (product) => getUnitPrice(product, category), better: 'low',
       text: (product) => `${currency.format(getUnitPrice(product, category))} por ${unitLabel(product)}` },
     { label: 'Preço', value: buyPrice,
-      text: (product) => `${currency.format(buyPrice(product))} (${formatAmount(product, category)})${mercadoLivreIsCheaper(product) ? ' no Mercado Livre' : ''}` },
+      text: (product) => `${currency.format(buyPrice(product))} (${formatAmount(product, category)})` },
     { label: 'Tipo', text: (product) => product.type },
   ];
   if (category === 'whey') {
@@ -945,9 +934,7 @@ function renderCompareDialog(items) {
       ${product.image ? `<img src="${escapeHtml(product.image)}" alt="" width="56" height="56" loading="lazy">` : ''}
       <p class="product-brand">${escapeHtml(product.brand)}${product.store ? ` · ${escapeHtml(product.store)}` : ''}</p>
       <p class="compare-name">${escapeHtml(product.name)}</p>
-      ${mercadoLivreIsCheaper(product)
-    ? `<a class="product-link" href="${escapeHtml(mercadoLivreOffer(product).url)}" target="_blank" rel="noopener noreferrer">Ver no Mercado Livre ↗</a>`
-    : `<a class="product-link" href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer">Ver produto ↗</a>`}
+      <a class="product-link" href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer">Ver produto ↗</a>
     </div>`).join('')}</div>`;
   const rows = compareRows(activeCategory, items).map((row) => {
     const texts = items.map((product) => {

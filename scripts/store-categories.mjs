@@ -123,7 +123,7 @@ export function vitaminCPercent(name, description = '') {
   const read = (text) => {
     const plain = normalize(String(text).replace(/<[^>]+>/g, ' '));
     const match = plain.match(/vitamina\s*c[^%\d]{0,25}(\d{1,2}(?:[.,]\d+)?)\s*%/) || plain.match(/(\d{1,2}(?:[.,]\d+)?)\s*%\s*(?:de\s*)?(?:vitamina\s*c|acido ascorbico)/)
-      || plain.match(/\b(?:improve|pure|vitamina|vit\.?)\s*c\s*-?\s*(\d{1,2})\b(?!\s*(?:ml|g|un|mg)\b)/);
+      || plain.match(/\b(?:improve|pure|vitamina|vit\.?)\s*c\s*-?\s*(\d{1,2})\b(?!\s*(?:ml|g|un|mg|em|in)\b)/);
     const value = match ? number(match[1]) : null;
     return value >= 1 && value <= 30 ? value : null;
   };
