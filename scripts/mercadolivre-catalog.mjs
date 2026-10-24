@@ -1,8 +1,7 @@
 // Looks up products in the Mercado Livre product catalog by barcode to read
 // the attributes it lists (for sunscreens: water resistance, oil free, tint,
-// kids...), and the cheapest trustworthy offer for that catalog product. Search, single
-// listings and reviews are blocked for apps like ours (403); a catalog
-// product's list of offers is not.
+// kids...). Search, single listings and reviews are blocked for apps like
+// ours (403).
 //
 // Needs ML_CLIENT_ID and ML_CLIENT_SECRET (a Mercado Livre developer app) in
 // the environment or in .env; without them the lookup is skipped.
@@ -68,13 +67,6 @@ export async function fetchCatalogProduct(token, barcode, spf) {
   return match ? withDetails(token, match) : null;
 }
 
-// The catalog product with this barcode as { id, name, attributes }, without
-// the extra request for its features.
-export async function findCatalogProduct(token, barcode) {
-  const match = (await catalogSearch(token, { product_identifier: barcode }))[0];
-  return match ? { id: match.id, name: match.name, attributes: attributesOf(match) } : null;
-}
-
 const plain = (value) => String(value || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const STOPWORDS = new Set(['protetor', 'solar', 'fps', 'fator', 'com', 'de', 'e', 'para', 'uva', 'uvb', 'litro', 'litros', 'ml', 'g', 'l']);
 const words = (value) => new Set(plain(value).split(/[^a-z0-9]+/).filter((word) => word.length > 1 && !STOPWORDS.has(word) && !/\d/.test(word)));
@@ -115,46 +107,4 @@ export async function searchCatalogProduct(token, product) {
     return { result, score: [...ours].filter((word) => theirs.has(word)).length / Math.max(ours.size, 1) };
   }).sort((a, b) => b.score - a.score);
   return candidates.length ? withDetails(token, candidates[0].result) : null;
-}
-
-// Seller reputation colors from Mercado Livre ("5_green" is the best level).
-const TRUSTED_LEVELS = new Set(['5_green', '4_light_green']);
-
-async function sellerLevel(token, sellerId, cache) {
-  if (!cache.has(sellerId)) {
-    cache.set(sellerId, apiFetch(token, `${API}/users/${sellerId}`)
-      .then((response) => (response.ok ? response.json() : null))
-      .then((user) => user?.seller_reputation?.level_id || null)
-      .catch(() => null));
-  }
-  return cache.get(sellerId);
-}
-
-// Returns the cheapest new offer with free shipping from a well-rated seller,
-// as { price, originalPrice, itemId, url, sellerLevel }, or null. The API
-// gives no shipping cost, so offers with paid shipping are left out: their
-// listed price is not what the buyer pays. An offer under a third or over
-// three times the store's price is treated as a different item (a sample, a
-// kit, a wrong catalog match).
-export async function fetchBestOffer(token, catalogProductId, { storePrice, sellers = new Map() } = {}) {
-  const response = await apiFetch(token, `${API}/products/${catalogProductId}/items`);
-  if (response.status === 404) return null; // no one is selling it right now
-  if (!response.ok) throw new Error(`HTTP ${response.status} from Mercado Livre offers`);
-  const offers = ((await response.json()).results || [])
-    .filter((offer) => offer.condition === 'new' && offer.shipping?.free_shipping && offer.currency_id === 'BRL'
-      && Number(offer.price) > 0 && (offer.min_purchase_unit || 1) === 1
-      && (!storePrice || (Number(offer.price) >= storePrice / 3 && Number(offer.price) <= storePrice * 3)))
-    .sort((a, b) => a.price - b.price);
-  for (const offer of offers) {
-    const level = await sellerLevel(token, offer.seller_id, sellers);
-    if (!TRUSTED_LEVELS.has(level)) continue;
-    return {
-      price: Number(offer.price),
-      originalPrice: Number(offer.original_price) || undefined,
-      itemId: offer.item_id,
-      url: `https://produto.mercadolivre.com.br/${offer.item_id.replace(/^MLB/, 'MLB-')}`,
-      sellerLevel: level,
-    };
-  }
-  return null;
 }

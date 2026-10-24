@@ -5,14 +5,14 @@ import { createHash } from 'node:crypto';
 import { chromium } from 'playwright';
 import { createWorker } from 'tesseract.js';
 import { fetchVtexSunscreens, vtexSunscreenSources } from './vtex-sunscreens.mjs';
-import { fetchBestOffer, fetchCatalogProduct, findCatalogProduct, mercadoLivreToken, searchCatalogProduct } from './mercadolivre-catalog.mjs';
+import { fetchCatalogProduct, mercadoLivreToken, searchCatalogProduct } from './mercadolivre-catalog.mjs';
 import { productThumbnail } from './product-image.mjs';
 import { compareProducts, shrinkage } from './update-checks.mjs';
 import { fatDetails } from './nutrition-table.mjs';
 import { labelInfo } from './whey-label.mjs';
 import { fetchVtexSupplements } from './vtex-supplements.mjs';
 import { fetchShopifySupplements } from './shopify-supplements.mjs';
-import { STORE_CATEGORIES, fetchStoreCategory, samePackage, tidyBrands } from './store-categories.mjs';
+import { STORE_CATEGORIES, fetchStoreCategory, tidyBrands } from './store-categories.mjs';
 import { creatineShareFromText, matchesCategory } from './supplement-rules.mjs';
 import { agreeingReading, hasSaturatedFat, mergeMissingRows, ocrNutritionTable, sameReading, parseOcrNutritionTable, summarizeOcrNutrition, validateOcrNutrition } from './nutrition-ocr.mjs';
 
@@ -291,8 +291,6 @@ async function addMercadoLivreData(sunscreens, previous) {
   }
   if (!token) console.warn('No Mercado Livre credentials (ML_CLIENT_ID, ML_CLIENT_SECRET); keeping previous catalog data.');
   let matched = 0;
-  let offers = 0;
-  const sellers = new Map();
   for (const product of sunscreens) {
     let data = previousByUrl.get(product.url);
     if (token) {
@@ -305,23 +303,11 @@ async function addMercadoLivreData(sunscreens, previous) {
       }
     }
     if (!data) continue;
-    // Prices go stale fast, so an offer is only kept from this run.
     delete data.offer;
-    if (token) {
-      try {
-        const offer = await fetchBestOffer(token, data.id, { storePrice: product.price, sellers });
-        if (offer) {
-          data.offer = offer;
-          offers += 1;
-        }
-      } catch (error) {
-        console.warn(`Could not read Mercado Livre offers for ${product.name}: ${error.message}`);
-      }
-    }
     product.mercadoLivre = data;
     matched += 1;
   }
-  console.log(`Found Mercado Livre catalog data for ${matched} of ${sunscreens.length} sunscreens, with an offer for ${offers}.`);
+  console.log(`Found Mercado Livre catalog data for ${matched} of ${sunscreens.length} sunscreens.`);
 }
 
 // Categories read from store catalogs (scripts/store-categories.mjs). With
@@ -352,41 +338,7 @@ async function refreshStoreCategories(page, catalog, existingCatalog, problems, 
     }
     if (rule.reviews) keepPreviousReviews(catalog[category], previous);
     tidyBrands(catalog[category]);
-    await addMercadoLivreOffers(category, catalog[category].filter((product) => stores.some((store) => store.store === product.store)));
   }
-}
-
-// The cheapest trustworthy Mercado Livre offer for store-category products,
-// found by barcode. The catalog product must be the same package (count or
-// size in its name), or the offer would be for a kit or another size. Offers
-// are only kept from this run; without credentials there are none.
-let mercadoLivreSession;
-async function addMercadoLivreOffers(category, products) {
-  if (!products.length) return;
-  mercadoLivreSession ||= mercadoLivreToken().then((token) => ({ token, sellers: new Map() }))
-    .catch((error) => (console.warn(`Mercado Livre login failed: ${error.message}`), { token: null }));
-  const { token, sellers } = await mercadoLivreSession;
-  if (!token) return;
-  let matched = 0;
-  let offers = 0;
-  for (const product of products) {
-    delete product.mercadoLivre;
-    if (!product.barcode) continue;
-    try {
-      const match = await findCatalogProduct(token, product.barcode);
-      if (!match || !samePackage(category, product, match.name)) continue;
-      product.mercadoLivre = { id: match.id, name: match.name };
-      matched += 1;
-      const offer = await fetchBestOffer(token, match.id, { storePrice: product.price, sellers });
-      if (offer) {
-        product.mercadoLivre.offer = offer;
-        offers += 1;
-      }
-    } catch (error) {
-      console.warn(`Could not read Mercado Livre data for ${product.name}: ${error.message}`);
-    }
-  }
-  console.log(`Found the same package on Mercado Livre for ${matched} of ${products.length} ${category} products, with an offer for ${offers}.`);
 }
 
 function isDirectProductUrl(value, source) {

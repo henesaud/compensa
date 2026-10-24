@@ -2,7 +2,7 @@
 
 ### 🌐 **[compensaprecos.com.br](https://compensaprecos.com.br)** — see it live
 
-A Portuguese-language price comparison site. It compares products by unit price (per gram of protein, per 100 g of creatine, per ml, per diaper, etc.) across brand stores, pharmacies, supermarkets and Mercado Livre:
+A Portuguese-language price comparison site. It compares products by unit price (per gram of protein, per 100 g of creatine, per ml, per diaper, etc.) across brand stores, pharmacies and supermarkets:
 
 - Supplements: whey, creatine, protein bars, omega 3, peanut butter
 - Skin care: sunscreen, moisturizer, vitamin C
@@ -31,7 +31,7 @@ npm run check
 - Whey and creatine: brand stores (Growth, Max Titanium, Essential, Probiótica, Nutrify, True Source, Soldiers, Dux, Adaptogen, New Nutrition, and creatine-only stores), scraped with Playwright or read from VTEX and Shopify APIs. Nutrition tables, ingredients and allergens come from the product pages; Portuguese OCR (Tesseract) is used when the table is only an image, checked against the label's energy value.
 - Sunscreen: Nutriex, Adcos, Dermage and Drogaria São Paulo, with store reviews keyword-counted per trait (stinging, sticky, oily, white cast…).
 - Other categories: VTEX store catalogs (Drogaria São Paulo, Pague Menos, Savegnago, Zona Sul, Cobasi, Adcos, Dermage and the supplement brand stores).
-- Mercado Livre: catalog attributes (water resistant, oil free…) for the same package, matched by barcode. Needs `ML_CLIENT_ID` and `ML_CLIENT_SECRET` in `.env`; without them the previous data is kept.
+- Mercado Livre (sunscreen only): catalog attributes (water resistant, oil free, tinted…), matched by barcode. Needs `ML_CLIENT_ID` and `ML_CLIENT_SECRET` in `.env`; without them the previous data is kept.
 
 Run `npm test` after changing the OCR parser, review keywords or label parsing.
 

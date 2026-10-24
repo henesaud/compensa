@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { STORE_CATEGORIES, barProtein, diaperSize, omegaPerCapsule, omegaQuality, parseCount, parseMass, samePackage, toiletPaperLength, vitaminCPercent } from './store-categories.mjs';
+import { STORE_CATEGORIES, barProtein, diaperSize, omegaPerCapsule, omegaQuality, parseCount, parseMass, toiletPaperLength, vitaminCPercent } from './store-categories.mjs';
 
 test('reads counts and sizes from names', () => {
   assert.equal(parseCount('Fralda Pampers Confort Sec G 128 Unidades'), 128);
@@ -71,13 +71,4 @@ test('reads the vitamin C concentration', () => {
   assert.equal(vitaminCPercent('Vitamina C 15 Aqua Stick'), 15);
   assert.equal(vitaminCPercent('Sérum Vult Vitamina C Pura 30g'), null);
   assert.equal(vitaminCPercent('Gel Creme Facial Nivea Vitamina C 7 Em 1 Ultra leve 100g'), null);
-});
-
-test('matches Mercado Livre catalog products of the same package only', () => {
-  assert.equal(samePackage('omega3', { capsules: 100 }, 'Ômega 3 Omix EPA DHA + Vitamina E - 120 Cápsulas'), false);
-  assert.equal(samePackage('proteinBars', { bars: 1 }, 'Kit 6 Unid Barrinha De Proteína Charge 45g'), false);
-  assert.equal(samePackage('proteinBars', { bars: 1 }, 'Barra De Proteína Bold Bombom Crocante 40g'), true);
-  assert.equal(samePackage('petFood', { amount: 10100 }, 'Ração Magnus Todo Dia cães adultos saco 10,1kg'), true);
-  assert.equal(samePackage('petFood', { amount: 2000 }, 'Ração Vet Care Cães Mini 10,1kg'), false);
-  assert.equal(samePackage('diapers', { amount: 68 }, 'Fralda Pampers Premium Care Tamanho G 68 Unidades'), true);
 });

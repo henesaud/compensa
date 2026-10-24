@@ -302,33 +302,6 @@ export const STORE_CATEGORIES = {
   },
 };
 
-// The package size written in a name, to tell whether a Mercado Livre catalog
-// product found by barcode is the same package (not a kit or another size).
-const massPack = (name) => parseMass(name)?.amount ?? null;
-const PACK_SIZES = {
-  diapers: (name) => parseCount(name),
-  toiletPaper: (name) => toiletPaperLength(name)?.rolls ?? parseCount(name, 'rolos|unidades|un\\b'),
-  laundry: massPack,
-  petFood: massPack,
-  moisturizer: massPack,
-  vitaminC: massPack,
-  peanutButter: massPack,
-  proteinBars: (name) => (/\bkit\b|\bcaixa\b|\bcx\b|display/i.test(name) ? parseCount(name, 'unidades?|unid\\.?|un\\b|und\\b|barras') : parseCount(name, 'unidades?|unid\\.?|un\\b|und\\b|barras') || 1),
-  omega3: (name) => parseCount(name, 'c[áa]psulas?|caps\\b|c[áa]ps\\.?|softgels?'),
-};
-// Our package size in the same terms as PACK_SIZES.
-const OUR_PACK = {
-  diapers: (product) => product.amount,
-  toiletPaper: (product) => product.rolls,
-  proteinBars: (product) => product.bars,
-  omega3: (product) => product.capsules,
-};
-export function samePackage(category, product, catalogName) {
-  const theirs = PACK_SIZES[category]?.(catalogName);
-  const ours = OUR_PACK[category] ? OUR_PACK[category](product) : product.amount;
-  return Number.isFinite(theirs) && ours > 0 && Math.abs(theirs - ours) / ours < 0.02;
-}
-
 function plainText(item) {
   return [item.description, ...(item['Descrição longa'] || []), ...(item['Informação Nutricional'] || []), item.metaTagDescription]
     .filter(Boolean).join(' ');
