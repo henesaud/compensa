@@ -155,7 +155,7 @@ const CATEGORY_PAGES = {
     description: 'Compare protetor solar pelo preço por 100 ml ou 100 g, com FPS, textura, características e o que dizem as avaliações de clientes.',
     heading: 'Protetor solar: preço por 100 ml',
     listTitle: 'Os 10 protetores solares com menor preço por 100 ml',
-    method: 'O preço é dividido pelo tamanho da embalagem e mostrado por 100 ml (loções, fluidos e sprays) ou por 100 g (cremes e géis). Quando o mesmo produto sai mais barato no Mercado Livre, com frete grátis e vendedor bem avaliado, o cálculo usa esse preço.',
+    method: 'O preço é dividido pelo tamanho da embalagem e mostrado por 100 ml (loções, fluidos e sprays) ou por 100 g (cremes e géis).',
   },
   proteinBars: {
     path: '/barra-de-proteina',
