@@ -1,13 +1,13 @@
 # Compensa?
 
+### 🌐 **[compensaprecos.com.br](https://compensaprecos.com.br)** — see it live
+
 A Portuguese-language price comparison site. It compares products by unit price (per gram of protein, per 100 g of creatine, per ml, per diaper, etc.) across brand stores, pharmacies, supermarkets and Mercado Livre:
 
 - Supplements: whey, creatine, protein bars, omega 3, peanut butter
 - Skin care: sunscreen, moisturizer, vitamin C
 - Home and baby: diapers, toilet paper, laundry detergent
 - Pet food
-
-Live site: <https://compensaprecos.com.br>
 
 ## Preview locally
 
